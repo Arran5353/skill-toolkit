@@ -3,16 +3,7 @@ import XCTest
 
 final class FrontmatterParserTests: XCTestCase {
     func test_parses_name_and_description_and_body() {
-        let text = """
-        ---
-        name: brainstorming
-        description: Use this before any creative work.
-        ---
-
-        # Brainstorming
-
-        Body line.
-        """
+        let text = "---\nname: brainstorming\ndescription: Use this before any creative work.\n---\n\n# Brainstorming\n\nBody line."
         let r = FrontmatterParser.parse(text)
         XCTAssertEqual(r.frontmatter["name"], "brainstorming")
         XCTAssertEqual(r.frontmatter["description"], "Use this before any creative work.")
@@ -26,10 +17,11 @@ final class FrontmatterParserTests: XCTestCase {
         XCTAssertEqual(r.body, "Just a body, no fence.")
     }
 
-    func test_malformed_frontmatter_does_not_crash() {
-        let r = FrontmatterParser.parse("---\nthis is : : broken\n")  // no closing fence
+    func test_missing_closing_fence_returns_full_text_as_body() {
+        let input = "---\nthis is : : broken\n"
+        let r = FrontmatterParser.parse(input)
         XCTAssertTrue(r.frontmatter.isEmpty)
-        XCTAssertTrue(r.body.contains("broken"))
+        XCTAssertEqual(r.body, input)
     }
 
     func test_empty_string() {
@@ -42,5 +34,11 @@ final class FrontmatterParserTests: XCTestCase {
         let text = "---\ndescription: a: b: c\n---\nbody"
         let r = FrontmatterParser.parse(text)
         XCTAssertEqual(r.frontmatter["description"], "a: b: c")
+    }
+
+    func test_closing_fence_at_end_yields_empty_body() {
+        let r = FrontmatterParser.parse("---\nkey: val\n---")
+        XCTAssertEqual(r.frontmatter["key"], "val")
+        XCTAssertEqual(r.body, "")
     }
 }

@@ -8,6 +8,7 @@ public struct FrontmatterParser {
 
     /// Parses a `---`-fenced YAML-ish frontmatter block (flat key: value pairs only).
     /// Tolerant: missing/closing fence → empty frontmatter, whole text as body.
+    /// The returned body is trimmed of leading/trailing whitespace and newlines.
     public static func parse(_ text: String) -> Result {
         let lines = text.components(separatedBy: "\n")
         guard let first = lines.first, first.trimmingCharacters(in: .whitespaces) == "---" else {
