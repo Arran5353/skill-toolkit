@@ -69,4 +69,27 @@ final class TreeBuilderTests: XCTestCase {
         XCTAssertEqual(leaf.parentID, "plugin|superpowers")
         XCTAssertNotNil(nodes.first { $0.id == "plugin|superpowers" && $0.kind == .plugin })
     }
+
+    func test_same_named_plugins_across_marketplaces_documents_current_behavior() {
+        // Two marketplaces each declare a plugin named "shared". A leaf for "shared" is parented
+        // to ONE of them (last-write-wins on the name index). This documents current behavior;
+        // see the KNOWN LIMITATION note in TreeBuilder.
+        let mpNodes = [
+            Node(id: Node.marketplaceID("mpA"), kind: .marketplace, name: "mpA",
+                 description: "", status: .notApplicable, parentID: nil),
+            Node(id: Node.pluginID(marketplace: "mpA", plugin: "shared"), kind: .plugin,
+                 name: "shared", description: "", status: .installed,
+                 parentID: Node.marketplaceID("mpA"), marketplaceName: "mpA", installRef: "shared@mpA"),
+            Node(id: Node.marketplaceID("mpB"), kind: .marketplace, name: "mpB",
+                 description: "", status: .notApplicable, parentID: nil),
+            Node(id: Node.pluginID(marketplace: "mpB", plugin: "shared"), kind: .plugin,
+                 name: "shared", description: "", status: .installed,
+                 parentID: Node.marketplaceID("mpB"), marketplaceName: "mpB", installRef: "shared@mpB"),
+        ]
+        let items = [skill("foo", plugin: "shared")]
+        let nodes = TreeBuilder.build(skillItems: items, marketplaceNodes: mpNodes)
+        let leaf = nodes.first { $0.name == "foo" }!
+        // last-write-wins: parented to mpB's plugin node
+        XCTAssertEqual(leaf.parentID, Node.pluginID(marketplace: "mpB", plugin: "shared"))
+    }
 }

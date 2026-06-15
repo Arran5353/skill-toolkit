@@ -21,6 +21,11 @@ public struct TreeBuilder {
         var pluginParentByName: [String: String] = [:]   // pluginName -> plugin node id
         for n in marketplaceNodes {
             add(n)
+            // KNOWN LIMITATION: keyed by bare plugin name. If two marketplaces ever share a
+            // plugin name, last-write-wins and an installed plugin's leaves may be parented to
+            // the wrong marketplace's plugin node. Harmless today (one real marketplace); the
+            // leaf + injection stay correct, only tree placement would be off. Fix requires
+            // Scanner to record each plugin's marketplace. Tracked for a future revision.
             if n.kind == .plugin { pluginParentByName[n.name] = n.id }
         }
 
