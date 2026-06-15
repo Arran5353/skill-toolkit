@@ -21,7 +21,8 @@ struct ListView: View {
             // Only plugin/project commands here; built-in slash commands have their own filter.
             base = store.nodes.filter { $0.kind == .command }
         case .skills:
-            base = store.nodes.filter { $0.kind == .skill || $0.kind == .localSkill }
+            // Only plugin/project skills here; user-placed local skills have their own filter.
+            base = store.nodes.filter { $0.kind == .skill }
         case .localSkills:
             base = store.nodes.filter { $0.kind == .localSkill }
         case .builtin:
