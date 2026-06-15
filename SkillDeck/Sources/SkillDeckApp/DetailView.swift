@@ -9,46 +9,51 @@ struct DetailView: View {
     @State private var editedInsert: String = ""
     @State private var showCopyOnlyNote = false
 
-    private var item: SkillItem? { selection.flatMap { store.item(id: $0) } }
+    private var node: Node? { selection.flatMap { store.node(id: $0) } }
 
     var body: some View {
-        if let item {
+        if let node {
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
-                    Text(item.name).font(.title.bold())
-                    Text(scopeLabel(item)).font(.caption).foregroundStyle(.secondary)
-                    if !item.description.isEmpty {
-                        Text(item.description)
+                    Text(node.name).font(.title.bold())
+                    Text(kindLabel(node)).font(.caption).foregroundStyle(.secondary)
+                    if !node.description.isEmpty {
+                        Text(node.description)
                     }
                     Divider()
                     Text("Insert text").font(.headline)
                     TextField("insert text", text: $editedInsert, axis: .vertical)
                         .textFieldStyle(.roundedBorder)
-                        .onSubmit { store.setOverride(item.id, text: editedInsert) }
+                        .onSubmit { store.setOverride(node.id, text: editedInsert) }
 
                     HStack {
                         Button {
-                            inject(item)
+                            inject(node)
                         } label: { Label("Inject into terminal", systemImage: "arrow.down.doc") }
                             .buttonStyle(.borderedProminent)
                         Button {
-                            copyOnly(item)
+                            copyOnly(node)
                         } label: { Label("Copy", systemImage: "doc.on.doc") }
-                        Button {
-                            store.toggleFavorite(item.id)
-                        } label: {
-                            Label(store.isFavorite(item.id) ? "Unfavorite" : "Favorite",
-                                  systemImage: store.isFavorite(item.id) ? "star.fill" : "star")
+                        if node.isLeaf {
+                            Button {
+                                store.toggleFavorite(node.id)
+                            } label: {
+                                Label(
+                                    store.isFavorite(node.id) ? "Unfavorite" : "Favorite",
+                                    systemImage: store.isFavorite(node.id) ? "star.fill" : "star"
+                                )
+                            }
                         }
                     }
                     if showCopyOnlyNote {
                         Text("Accessibility not granted — copied to clipboard. Paste with Cmd+V.")
                             .font(.caption).foregroundStyle(.orange)
                     }
-                    if !item.body.isEmpty {
+                    if let body = node.body, !body.isEmpty {
                         Divider()
                         Text("Usage").font(.headline)
-                        Text(item.body).font(.system(.body, design: .monospaced))
+                        Text(body)
+                            .font(.system(.body, design: .monospaced))
                             .textSelection(.enabled)
                     }
                 }
@@ -56,42 +61,43 @@ struct DetailView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
             .onChange(of: selection) { _, _ in
-                editedInsert = store.effectiveInsertText(for: item.id)
+                editedInsert = store.effectiveInsertText(for: node.id)
                 showCopyOnlyNote = false
             }
-            .onAppear { editedInsert = store.effectiveInsertText(for: item.id) }
+            .onAppear { editedInsert = store.effectiveInsertText(for: node.id) }
         } else {
-            ContentUnavailableView("Select an item",
+            ContentUnavailableView(
+                "Select an item",
                 systemImage: "sidebar.left",
                 description: Text("Pick a skill or command to see its usage and inject it."))
         }
     }
 
-    private func inject(_ item: SkillItem) {
-        let text = store.effectiveInsertText(for: item.id)
+    private func inject(_ node: Node) {
+        let text = store.effectiveInsertText(for: node.id)
         let ok = Injector.inject(text, into: tracker.previousApp)
-        store.recordUse(item.id)
+        store.recordUse(node.id)
         if !ok {
             Injector.requestAccessibility()
             showCopyOnlyNote = true
         }
     }
 
-    private func copyOnly(_ item: SkillItem) {
+    private func copyOnly(_ node: Node) {
         let pb = NSPasteboard.general
         pb.clearContents()
-        pb.setString(store.effectiveInsertText(for: item.id), forType: .string)
-        store.recordUse(item.id)
+        pb.setString(store.effectiveInsertText(for: node.id), forType: .string)
+        store.recordUse(node.id)
     }
 
-    private func scopeLabel(_ item: SkillItem) -> String {
-        let kind = item.kind == .skill ? "skill" : "command"
-        let where_: String
-        switch item.scope {
-        case .user: where_ = item.pluginName.map { "plugin: \($0)" } ?? "user"
-        case .project(let n): where_ = "project: \(n)"
-        case .builtin: where_ = "built-in"
+    private func kindLabel(_ node: Node) -> String {
+        switch node.kind {
+        case .skill:         return "skill"
+        case .command:       return "command"
+        case .builtinCommand: return "built-in command"
+        case .localSkill:    return "local skill"
+        case .plugin:        return "plugin"
+        case .marketplace:   return "marketplace"
         }
-        return "\(kind) - \(where_)"
     }
 }

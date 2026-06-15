@@ -9,15 +9,26 @@ struct SkillDeckApp: App {
     @State private var watcher: FileWatcher?
     @State private var selection: String?
     @State private var sidebarFilter: SidebarFilter = .all
+    @State private var claudeAvailable: Bool = false
 
     var body: some Scene {
         Window("SkillDeck", id: "main") {
             NavigationSplitView {
                 SidebarView(store: store, filter: $sidebarFilter)
             } content: {
-                ListView(store: store, filter: sidebarFilter, selection: $selection)
+                ContentColumn(
+                    store: store,
+                    filter: sidebarFilter,
+                    selection: $selection,
+                    claudeAvailable: claudeAvailable
+                )
             } detail: {
-                DetailView(store: store, tracker: tracker, selection: $selection)
+                DetailColumn(
+                    store: store,
+                    tracker: tracker,
+                    selection: $selection,
+                    claudeAvailable: claudeAvailable
+                )
             }
             .frame(minWidth: 820, minHeight: 480)
             .onAppear { bootstrap() }
@@ -31,14 +42,15 @@ struct SkillDeckApp: App {
 
     @MainActor
     private func bootstrap() {
+        claudeAvailable = Installer.isClaudeAvailable
         tracker.start()
         reload()
         let home = FileManager.default.homeDirectoryForCurrentUser.path
-        let watcher = FileWatcher(
+        let newWatcher = FileWatcher(
             paths: ["\(home)/.claude/skills", "\(home)/.claude/plugins"],
             onChange: { Task { @MainActor in reload() } })
-        watcher.start()
-        self.watcher = watcher
+        newWatcher.start()
+        self.watcher = newWatcher
     }
 
     @MainActor
@@ -46,12 +58,70 @@ struct SkillDeckApp: App {
         let home = FileManager.default.homeDirectoryForCurrentUser.path
         let projects = ProjectDiscovery.recentProjects(
             historyPath: "\(home)/.claude/history.jsonl", limit: 15)
-        let result = Scanner.scanDefault(projectDirs: projects)
-        store.setItems(result.items)
+        let result = CatalogLoader.loadDefault(projectDirs: projects)
+        store.setNodes(result.nodes)
         store.setWarnings(result.warnings)
     }
 }
 
 enum SidebarFilter: Hashable {
-    case all, favorites, recents, commands, skills, plugin(String), diagnostics
+    case all, favorites, recents, commands, skills, localSkills, builtin, marketplace, diagnostics
+}
+
+// MARK: - Content Column
+
+struct ContentColumn: View {
+    let store: AppStore
+    let filter: SidebarFilter
+    @Binding var selection: String?
+    let claudeAvailable: Bool
+
+    var body: some View {
+        switch filter {
+        case .marketplace:
+            MarketplaceView(store: store, selection: $selection, claudeAvailable: claudeAvailable)
+        case .diagnostics:
+            DiagnosticsView(store: store)
+        case .all, .favorites, .recents, .commands, .skills, .localSkills, .builtin:
+            ListView(store: store, filter: filter, selection: $selection)
+        }
+    }
+}
+
+// MARK: - Detail Column
+
+struct DetailColumn: View {
+    let store: AppStore
+    let tracker: FrontmostAppTracker
+    @Binding var selection: String?
+    let claudeAvailable: Bool
+
+    var body: some View {
+        if let id = selection, let node = store.node(id: id) {
+            switch node.kind {
+            case .plugin:
+                PluginDetailView(store: store, node: node, claudeAvailable: claudeAvailable)
+            case .marketplace:
+                GroupPlaceholder(name: node.name, subtitle: "Marketplace")
+            case .skill, .command, .builtinCommand, .localSkill:
+                DetailView(store: store, tracker: tracker, selection: $selection)
+            }
+        } else {
+            ContentUnavailableView(
+                "Select an item",
+                systemImage: "sidebar.left",
+                description: Text("Pick a skill or command to see its usage and inject it."))
+        }
+    }
+}
+
+struct GroupPlaceholder: View {
+    let name: String
+    let subtitle: String
+    var body: some View {
+        ContentUnavailableView(
+            name,
+            systemImage: "folder",
+            description: Text(subtitle))
+    }
 }

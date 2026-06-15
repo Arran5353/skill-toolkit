@@ -5,10 +5,6 @@ struct SidebarView: View {
     let store: AppStore
     @Binding var filter: SidebarFilter
 
-    private var plugins: [String] {
-        Array(Set(store.items.compactMap { $0.pluginName })).sorted()
-    }
-
     var body: some View {
         List(selection: Binding(
             get: { filter },
@@ -21,11 +17,11 @@ struct SidebarView: View {
             Section("Type") {
                 Label("Commands", systemImage: "terminal").tag(SidebarFilter.commands)
                 Label("Skills", systemImage: "sparkles").tag(SidebarFilter.skills)
+                Label("My Local", systemImage: "folder.badge.person.crop").tag(SidebarFilter.localSkills)
+                Label("Built-in", systemImage: "wrench.and.screwdriver").tag(SidebarFilter.builtin)
             }
-            Section("Plugins") {
-                ForEach(plugins, id: \.self) { p in
-                    Label(p, systemImage: "puzzlepiece").tag(SidebarFilter.plugin(p))
-                }
+            Section("Browse") {
+                Label("Marketplace", systemImage: "puzzlepiece.extension").tag(SidebarFilter.marketplace)
             }
             Section {
                 Label("Diagnostics", systemImage: "exclamationmark.triangle")

@@ -13,15 +13,15 @@ struct MenuBarView: View {
 
         if !favs.isEmpty {
             Section("Favorites") {
-                ForEach(favs) { item in
-                    Button(item.name) { fire(item) }
+                ForEach(favs) { node in
+                    Button(node.name) { fire(node) }
                 }
             }
         }
         if !recents.isEmpty {
             Section("Recent") {
-                ForEach(recents) { item in
-                    Button(item.name) { fire(item) }
+                ForEach(recents) { node in
+                    Button(node.name) { fire(node) }
                 }
             }
         }
@@ -30,9 +30,9 @@ struct MenuBarView: View {
         Button("Quit") { NSApplication.shared.terminate(nil) }
     }
 
-    private func fire(_ item: SkillItem) {
-        let ok = Injector.inject(store.effectiveInsertText(for: item.id), into: tracker.previousApp)
-        store.recordUse(item.id)
+    private func fire(_ node: Node) {
+        let ok = Injector.inject(store.effectiveInsertText(for: node.id), into: tracker.previousApp)
+        store.recordUse(node.id)
         if !ok { Injector.requestAccessibility() }
     }
 }
