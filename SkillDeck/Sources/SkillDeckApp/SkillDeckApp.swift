@@ -82,7 +82,9 @@ struct ContentColumn: View {
             MarketplaceView(store: store, selection: $selection, claudeAvailable: claudeAvailable)
         case .diagnostics:
             DiagnosticsView(store: store)
-        case .all, .favorites, .recents, .commands, .skills, .localSkills, .builtin:
+        case .all:
+            TreeListView(store: store, selection: $selection)
+        default:
             ListView(store: store, filter: filter, selection: $selection)
         }
     }

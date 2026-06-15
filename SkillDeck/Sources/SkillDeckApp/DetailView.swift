@@ -60,8 +60,8 @@ struct DetailView: View {
                 .padding()
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .onChange(of: selection) { _, _ in
-                editedInsert = store.effectiveInsertText(for: node.id)
+            .onChange(of: selection) { _, newSel in
+                editedInsert = store.effectiveInsertText(for: newSel ?? "")
                 showCopyOnlyNote = false
             }
             .onAppear { editedInsert = store.effectiveInsertText(for: node.id) }
