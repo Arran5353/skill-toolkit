@@ -31,6 +31,7 @@ struct SkillDeckApp: App {
                 )
             }
             .frame(minWidth: 820, minHeight: 480)
+            .frame(idealWidth: 1180, idealHeight: 760)
             .onAppear { bootstrap() }
         }
 

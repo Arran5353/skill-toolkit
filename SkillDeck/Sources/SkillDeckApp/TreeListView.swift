@@ -8,12 +8,19 @@ struct NodeRow: View {
     let isFavorite: Bool
 
     var body: some View {
-        HStack {
-            Image(systemName: iconName(for: node.kind))
-                .foregroundStyle(iconColor(for: node.kind))
-                .frame(width: 16)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(node.name).font(.body)
+        let accent = NodeTheme.accent(node.kind)
+        HStack(spacing: 10) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .fill(accent.opacity(0.15))
+                    .frame(width: 26, height: 26)
+                Image(systemName: NodeTheme.icon(node.kind))
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(accent)
+            }
+            VStack(alignment: .leading, spacing: 1) {
+                Text(node.name)
+                    .font(.system(.body, design: .rounded).weight(.medium))
                 if !node.description.isEmpty {
                     Text(node.description)
                         .font(.caption)
@@ -23,31 +30,12 @@ struct NodeRow: View {
             }
             Spacer()
             if isFavorite {
-                Image(systemName: "star.fill").foregroundStyle(.yellow)
+                Image(systemName: "star.fill")
+                    .font(.caption)
+                    .foregroundStyle(.yellow)
             }
         }
-    }
-
-    private func iconName(for kind: NodeKind) -> String {
-        switch kind {
-        case .marketplace:     return "globe"
-        case .plugin:          return "puzzlepiece.extension"
-        case .skill:           return "sparkles"
-        case .command:         return "terminal"
-        case .builtinCommand:  return "wrench.and.screwdriver"
-        case .localSkill:      return "folder.badge.person.crop"
-        }
-    }
-
-    private func iconColor(for kind: NodeKind) -> Color {
-        switch kind {
-        case .marketplace: return .blue
-        case .plugin:      return .purple
-        case .skill:       return .orange
-        case .command:     return .primary
-        case .builtinCommand: return .gray
-        case .localSkill:  return .green
-        }
+        .padding(.vertical, 2)
     }
 }
 
