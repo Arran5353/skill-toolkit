@@ -65,8 +65,31 @@ final class ScannerTests: XCTestCase {
         let result = Scanner.scan(userSkillsDir: "/nope", pluginsCacheDir: "/nope",
                                   projectDirs: [proj.path], includeBuiltins: false)
         let deploy = result.items.first { $0.name == "deploy" }!
-        XCTAssertEqual(deploy.scope, .project(proj.lastPathComponent))
+        let purl = URL(fileURLWithPath: proj.path)
+        let pparent = purl.deletingLastPathComponent().lastPathComponent
+        let expected = pparent.isEmpty ? purl.lastPathComponent : "\(pparent)/\(purl.lastPathComponent)"
+        XCTAssertEqual(deploy.scope, .project(expected))
         XCTAssertEqual(deploy.insertText, "/deploy")
+    }
+
+    func test_multiple_plugin_versions_dedupe_keeps_highest() throws {
+        let fm = FileManager.default
+        let root = fm.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        func write(_ rel: String, _ contents: String) throws {
+            let url = root.appendingPathComponent(rel)
+            try fm.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try contents.write(to: url, atomically: true, encoding: .utf8)
+        }
+        try write("cache/mp/superpowers/5.1.0/skills/tdd/SKILL.md",
+                  "---\nname: tdd\ndescription: OLD\n---\nold")
+        try write("cache/mp/superpowers/6.0.0/skills/tdd/SKILL.md",
+                  "---\nname: tdd\ndescription: NEW\n---\nnew")
+        let result = Scanner.scan(userSkillsDir: "/nope",
+                                  pluginsCacheDir: root.appendingPathComponent("cache").path,
+                                  projectDirs: [], includeBuiltins: false)
+        let tdds = result.items.filter { $0.name == "tdd" }
+        XCTAssertEqual(tdds.count, 1)
+        XCTAssertEqual(tdds.first?.description, "NEW")
     }
 
     func test_empty_file_records_warning_not_crash() throws {

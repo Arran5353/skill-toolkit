@@ -30,7 +30,8 @@ public struct Scanner {
         for marketplace in subdirectories(of: pluginsCacheDir) {
             for plugin in subdirectories(of: marketplace.path) {
                 let pluginName = plugin.lastPathComponent
-                for version in subdirectories(of: plugin.path) {
+                for version in subdirectories(of: plugin.path)
+                    .sorted(by: { $0.lastPathComponent.compare($1.lastPathComponent, options: .numeric) == .orderedDescending }) {
                     scanSkillDirs(in: version.appendingPathComponent("skills").path,
                                   scope: .user, pluginName: pluginName,
                                   items: &items, warnings: &warnings)
@@ -43,7 +44,9 @@ public struct Scanner {
 
         // 3. project-level: <project>/.claude/skills, <project>/.claude/commands
         for project in projectDirs {
-            let name = (project as NSString).lastPathComponent
+            let url = URL(fileURLWithPath: project)
+            let parent = url.deletingLastPathComponent().lastPathComponent
+            let name = parent.isEmpty ? url.lastPathComponent : "\(parent)/\(url.lastPathComponent)"
             scanSkillDirs(in: "\(project)/.claude/skills", scope: .project(name),
                           pluginName: nil, items: &items, warnings: &warnings)
             scanCommandFiles(in: "\(project)/.claude/commands", scope: .project(name),
@@ -52,6 +55,10 @@ public struct Scanner {
 
         // 4. built-ins
         if includeBuiltins { items.append(contentsOf: BuiltinCommands.load()) }
+
+        // 5. deduplicate by id, keeping highest-version (first-seen) entry
+        var seenIDs = Set<String>()
+        items = items.filter { seenIDs.insert($0.id).inserted }
 
         return Result(items: items, warnings: warnings)
     }
@@ -90,9 +97,15 @@ public struct Scanner {
     private static func appendParsed(file: String, fallbackName: String, kind: ItemKind,
                                      scope: SourceScope, pluginName: String?,
                                      items: inout [SkillItem], warnings: inout [ScanWarning]) {
-        let text = (try? String(contentsOfFile: file, encoding: .utf8)) ?? ""
-        if text.isEmpty {
-            warnings.append(ScanWarning(filePath: file, message: "Empty file"))
+        let text: String
+        if let read = try? String(contentsOfFile: file, encoding: .utf8) {
+            text = read
+            if text.isEmpty {
+                warnings.append(ScanWarning(filePath: file, message: "Empty file"))
+            }
+        } else {
+            text = ""
+            warnings.append(ScanWarning(filePath: file, message: "Could not read file"))
         }
         let parsed = FrontmatterParser.parse(text)
         if parsed.frontmatter.isEmpty && !text.isEmpty {
