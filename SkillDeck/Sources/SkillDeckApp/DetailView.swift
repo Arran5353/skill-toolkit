@@ -52,8 +52,7 @@ struct DetailView: View {
                     if let body = node.body, !body.isEmpty {
                         Divider()
                         Text("Usage").font(.headline)
-                        Text(body)
-                            .font(.system(.body, design: .monospaced))
+                        MarkdownText(body)
                             .textSelection(.enabled)
                     }
                 }

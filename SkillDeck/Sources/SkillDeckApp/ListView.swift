@@ -18,7 +18,8 @@ struct ListView: View {
         case .recents:
             base = store.recentItems(limit: 50)
         case .commands:
-            base = store.nodes.filter { $0.kind == .command || $0.kind == .builtinCommand }
+            // Only plugin/project commands here; built-in slash commands have their own filter.
+            base = store.nodes.filter { $0.kind == .command }
         case .skills:
             base = store.nodes.filter { $0.kind == .skill || $0.kind == .localSkill }
         case .localSkills:
