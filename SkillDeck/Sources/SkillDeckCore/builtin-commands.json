@@ -1,0 +1,7 @@
+[
+  {"name": "clear", "description": "Clear the conversation history and free up context."},
+  {"name": "config", "description": "Open the Claude Code settings/config UI."},
+  {"name": "review", "description": "Review a pull request."},
+  {"name": "init", "description": "Initialize a new CLAUDE.md with codebase documentation."},
+  {"name": "help", "description": "Show help and available commands."}
+]
