@@ -8,19 +8,21 @@ final class AppStoreTests: XCTestCase {
             .appendingPathComponent(UUID().uuidString + ".json").path
     }
 
-    private func sampleItems() -> [SkillItem] {
+    private func sampleNodes() -> [Node] {
         [
-            SkillItem(name: "brainstorming", kind: .skill, scope: .user, pluginName: "sp",
-                      description: "creative", body: "", filePath: "/a", insertText: "use the brainstorming skill"),
-            SkillItem(name: "code-review", kind: .command, scope: .user, pluginName: "cr",
-                      description: "review diff", body: "", filePath: "/b", insertText: "/code-review"),
+            Node(id: "user|sp|skill|brainstorming", kind: .skill, name: "brainstorming",
+                 description: "creative", status: .notApplicable, parentID: "plugin|sp",
+                 body: "", insertText: "use the brainstorming skill", filePath: "/a"),
+            Node(id: "user|cr|command|code-review", kind: .command, name: "code-review",
+                 description: "review diff", status: .notApplicable, parentID: "plugin|cr",
+                 body: "", insertText: "/code-review", filePath: "/b"),
         ]
     }
 
     func test_toggle_favorite_persists() throws {
         let path = tempPath()
         let store = AppStore(statePath: path)
-        store.setItems(sampleItems())
+        store.setNodes(sampleNodes())
         let id = "user|sp|skill|brainstorming"
         store.toggleFavorite(id)
         XCTAssertTrue(store.isFavorite(id))
@@ -31,7 +33,7 @@ final class AppStoreTests: XCTestCase {
 
     func test_record_use_updates_recents_count_and_order() {
         let store = AppStore(statePath: tempPath())
-        store.setItems(sampleItems())
+        store.setNodes(sampleNodes())
         store.recordUse("user|cr|command|code-review", now: 1.0)
         store.recordUse("user|sp|skill|brainstorming", now: 2.0)
         store.recordUse("user|cr|command|code-review", now: 3.0)
@@ -42,7 +44,7 @@ final class AppStoreTests: XCTestCase {
 
     func test_search_matches_name_description_plugin() {
         let store = AppStore(statePath: tempPath())
-        store.setItems(sampleItems())
+        store.setNodes(sampleNodes())
         XCTAssertEqual(store.search("brain").map(\.name), ["brainstorming"])
         XCTAssertEqual(store.search("review").map(\.name), ["code-review"])
         XCTAssertEqual(Set(store.search("").map(\.name)), ["brainstorming", "code-review"])
@@ -50,7 +52,7 @@ final class AppStoreTests: XCTestCase {
 
     func test_empty_override_clears_and_restores_default() {
         let store = AppStore(statePath: tempPath())
-        store.setItems(sampleItems())
+        store.setNodes(sampleNodes())
         let id = "user|sp|skill|brainstorming"
         store.setOverride(id, text: "/custom")
         XCTAssertEqual(store.effectiveInsertText(for: id), "/custom")
@@ -64,13 +66,13 @@ final class AppStoreTests: XCTestCase {
     func test_override_changes_effective_insert_text() {
         let path = tempPath()
         let store = AppStore(statePath: path)
-        store.setItems(sampleItems())
+        store.setNodes(sampleNodes())
         let id = "user|sp|skill|brainstorming"
         store.setOverride(id, text: "/brainstorm")
         XCTAssertEqual(store.effectiveInsertText(for: id), "/brainstorm")
 
         let reloaded = AppStore(statePath: path)
-        reloaded.setItems(sampleItems())
+        reloaded.setNodes(sampleNodes())
         XCTAssertEqual(reloaded.effectiveInsertText(for: id), "/brainstorm")
     }
 }

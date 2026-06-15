@@ -4,9 +4,10 @@ import Observation
 @MainActor
 @Observable
 public final class AppStore {
-    public private(set) var items: [SkillItem] = []
+    public private(set) var nodes: [Node] = []
     public private(set) var warnings: [ScanWarning] = []
     public private(set) var state: PersistedState
+    public let installer = Installer()
 
     private let statePath: String
 
@@ -21,30 +22,38 @@ public final class AppStore {
     }
 
     // MARK: - Catalog
-    public func setItems(_ items: [SkillItem]) { self.items = items }
+    public func setNodes(_ nodes: [Node]) { self.nodes = nodes }
     public func setWarnings(_ warnings: [ScanWarning]) { self.warnings = warnings }
-    public func item(id: String) -> SkillItem? { items.first { $0.id == id } }
+    public func node(id: String) -> Node? { nodes.first { $0.id == id } }
 
-    /// Case-insensitive match over name + description + plugin name. Empty query = all.
-    public func search(_ query: String) -> [SkillItem] {
+    public func children(of parentID: String) -> [Node] {
+        nodes.filter { $0.parentID == parentID }
+    }
+
+    public func rootNodes() -> [Node] {
+        nodes.filter { $0.parentID == nil }
+    }
+
+    /// Case-insensitive match over name + description. Empty query = all nodes.
+    public func search(_ query: String) -> [Node] {
         let q = query.lowercased().trimmingCharacters(in: .whitespaces)
-        guard !q.isEmpty else { return items }
-        return items.filter {
+        guard !q.isEmpty else { return nodes }
+        return nodes.filter {
             $0.name.lowercased().contains(q)
             || $0.description.lowercased().contains(q)
-            || ($0.pluginName?.lowercased().contains(q) ?? false)
         }
     }
 
     // MARK: - Favorites
     public func isFavorite(_ id: String) -> Bool { state.favorites.contains(id) }
     public func toggleFavorite(_ id: String) {
+        guard let n = node(id: id), n.isLeaf else { return }
         if let idx = state.favorites.firstIndex(of: id) { state.favorites.remove(at: idx) }
         else { state.favorites.append(id) }
         persist()
     }
-    public func favoriteItems() -> [SkillItem] {
-        state.favorites.compactMap { id in items.first { $0.id == id } }
+    public func favoriteItems() -> [Node] {
+        state.favorites.compactMap { id in nodes.first { $0.id == id } }
     }
 
     // MARK: - Recents
@@ -60,20 +69,16 @@ public final class AppStore {
     public func useCount(_ id: String) -> Int {
         state.recents.first { $0.id == id }?.count ?? 0
     }
-    public func recentItems(limit: Int) -> [SkillItem] {
+    public func recentItems(limit: Int) -> [Node] {
         state.recents.sorted { $0.lastUsed > $1.lastUsed }
             .prefix(limit)
-            .compactMap { entry in items.first { $0.id == entry.id } }
+            .compactMap { entry in nodes.first { $0.id == entry.id } }
     }
 
     // MARK: - Overrides
     public func setOverride(_ id: String, text: String) {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        if trimmed.isEmpty {
-            state.overrides[id] = nil
-        } else {
-            state.overrides[id] = text
-        }
+        if trimmed.isEmpty { state.overrides[id] = nil } else { state.overrides[id] = text }
         persist()
     }
     public func removeOverride(_ id: String) {
@@ -81,8 +86,8 @@ public final class AppStore {
         persist()
     }
     public func effectiveInsertText(for id: String) -> String {
-        if let override = state.overrides[id] { return override }
-        return items.first { $0.id == id }?.insertText ?? ""
+        if let o = state.overrides[id] { return o }
+        return nodes.first { $0.id == id }?.insertText ?? ""
     }
 
     // MARK: - Private
