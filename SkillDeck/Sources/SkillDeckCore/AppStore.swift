@@ -34,6 +34,7 @@ public final class AppStore {
         nodes.filter { $0.parentID == nil }
     }
 
+    /// Convenience full-catalog search (name + description). Not currently called by the app UI, which filters inline; provided for extensions/tests.
     /// Case-insensitive match over name + description. Empty query = all nodes.
     public func search(_ query: String) -> [Node] {
         let q = query.lowercased().trimmingCharacters(in: .whitespaces)

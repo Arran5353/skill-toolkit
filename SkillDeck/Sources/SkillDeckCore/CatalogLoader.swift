@@ -2,7 +2,7 @@ import Foundation
 
 /// Combines all scanners into the final node tree + warnings.
 public struct CatalogLoader {
-    public struct Result: Equatable {
+    public struct Result: Equatable, Sendable {
         public let nodes: [Node]
         public let warnings: [ScanWarning]
     }

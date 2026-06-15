@@ -6,7 +6,7 @@ public struct Scanner {
         public let warnings: [ScanWarning]
     }
 
-    /// Production convenience using the standard ~/.claude layout.
+    /// Convenience wrapper over scan(...) using the standard ~/.claude layout. CatalogLoader calls scan(...) directly; kept for standalone use/tests.
     public static func scanDefault(projectDirs: [String]) -> Result {
         let home = FileManager.default.homeDirectoryForCurrentUser.path
         return scan(

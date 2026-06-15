@@ -11,6 +11,7 @@ struct ListView: View {
         let base: [Node]
         switch filter {
         case .all:
+            // Not reached: SidebarFilter.all is routed to TreeListView by ContentColumn.
             base = store.nodes.filter { $0.isLeaf }
         case .favorites:
             base = store.favoriteItems()

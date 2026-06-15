@@ -56,11 +56,17 @@ struct SkillDeckApp: App {
     @MainActor
     private func reload() {
         let home = FileManager.default.homeDirectoryForCurrentUser.path
+        Task {
+            let result = await Self.scan(home: home)
+            store.setNodes(result.nodes)
+            store.setWarnings(result.warnings)
+        }
+    }
+
+    nonisolated private static func scan(home: String) async -> CatalogLoader.Result {
         let projects = ProjectDiscovery.recentProjects(
             historyPath: "\(home)/.claude/history.jsonl", limit: 15)
-        let result = CatalogLoader.loadDefault(projectDirs: projects)
-        store.setNodes(result.nodes)
-        store.setWarnings(result.warnings)
+        return CatalogLoader.loadDefault(projectDirs: projects)
     }
 }
 
