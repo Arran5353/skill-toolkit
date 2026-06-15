@@ -32,9 +32,9 @@ final class AppStoreTests: XCTestCase {
     func test_record_use_updates_recents_count_and_order() {
         let store = AppStore(statePath: tempPath())
         store.setItems(sampleItems())
-        store.recordUse("user|cr|command|code-review")
-        store.recordUse("user|sp|skill|brainstorming")
-        store.recordUse("user|cr|command|code-review")
+        store.recordUse("user|cr|command|code-review", now: 1.0)
+        store.recordUse("user|sp|skill|brainstorming", now: 2.0)
+        store.recordUse("user|cr|command|code-review", now: 3.0)
         let recents = store.recentItems(limit: 10)
         XCTAssertEqual(recents.first?.name, "code-review") // most recent
         XCTAssertEqual(store.useCount("user|cr|command|code-review"), 2)
@@ -46,6 +46,19 @@ final class AppStoreTests: XCTestCase {
         XCTAssertEqual(store.search("brain").map(\.name), ["brainstorming"])
         XCTAssertEqual(store.search("review").map(\.name), ["code-review"])
         XCTAssertEqual(Set(store.search("").map(\.name)), ["brainstorming", "code-review"])
+    }
+
+    func test_empty_override_clears_and_restores_default() {
+        let store = AppStore(statePath: tempPath())
+        store.setItems(sampleItems())
+        let id = "user|sp|skill|brainstorming"
+        store.setOverride(id, text: "/custom")
+        XCTAssertEqual(store.effectiveInsertText(for: id), "/custom")
+        store.setOverride(id, text: "   ")  // whitespace-only clears it
+        XCTAssertEqual(store.effectiveInsertText(for: id), "use the brainstorming skill")
+        store.setOverride(id, text: "/again")
+        store.removeOverride(id)
+        XCTAssertEqual(store.effectiveInsertText(for: id), "use the brainstorming skill")
     }
 
     func test_override_changes_effective_insert_text() {

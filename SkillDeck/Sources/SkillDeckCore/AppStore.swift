@@ -12,7 +12,12 @@ public final class AppStore {
 
     public init(statePath: String = Persistence.defaultPath()) {
         self.statePath = statePath
-        self.state = (try? Persistence.load(from: statePath)) ?? PersistedState()
+        do {
+            self.state = try Persistence.load(from: statePath)
+        } catch {
+            NSLog("SkillDeck: failed to load state from \(statePath): \(error). Starting with empty state.")
+            self.state = PersistedState()
+        }
     }
 
     // MARK: - Catalog
@@ -63,7 +68,16 @@ public final class AppStore {
 
     // MARK: - Overrides
     public func setOverride(_ id: String, text: String) {
-        state.overrides[id] = text
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty {
+            state.overrides[id] = nil
+        } else {
+            state.overrides[id] = text
+        }
+        persist()
+    }
+    public func removeOverride(_ id: String) {
+        state.overrides[id] = nil
         persist()
     }
     public func effectiveInsertText(for id: String) -> String {
