@@ -60,15 +60,34 @@ public final class Installer {
             proc.executableURL = claude
             proc.arguments = installArguments(installRef: ref)
             let errPipe = Pipe()
+            let outPipe = Pipe()
             proc.standardError = errPipe
-            proc.standardOutput = Pipe()
+            proc.standardOutput = outPipe
+
+            // Drain BOTH pipes concurrently on background queues. A CLI like `claude` can
+            // write more than the ~64KB pipe buffer to stdout; if we don't read it, the
+            // child blocks on write, never exits, terminationHandler never fires, and the
+            // install spins forever. Collecting on dispatch queues avoids that deadlock.
+            let outData = LockedData()
+            let errData = LockedData()
+            let group = DispatchGroup()
+            for (handle, sink) in [(outPipe.fileHandleForReading, outData),
+                                   (errPipe.fileHandleForReading, errData)] {
+                group.enter()
+                DispatchQueue.global(qos: .utility).async {
+                    sink.set((try? handle.readToEnd()) ?? Data())
+                    group.leave()
+                }
+            }
+
             proc.terminationHandler = { p in
+                // Wait for both readers to finish so output is complete and FDs are closed.
+                group.wait()
                 if p.terminationStatus == 0 {
                     cont.resume(returning: .succeeded)
                 } else {
-                    let data = (try? errPipe.fileHandleForReading.readToEnd()) ?? Data()
-                    let msg = String(data: data, encoding: .utf8)?
-                        .trimmingCharacters(in: .whitespacesAndNewlines) ?? "exit \(p.terminationStatus)"
+                    let msg = (String(data: errData.get(), encoding: .utf8) ?? "")
+                        .trimmingCharacters(in: .whitespacesAndNewlines)
                     cont.resume(returning: .failed(msg.isEmpty ? "exit \(p.terminationStatus)" : msg))
                 }
             }
@@ -77,4 +96,12 @@ public final class Installer {
             }
         }
     }
+}
+
+/// Minimal thread-safe Data box for collecting pipe output from a background queue.
+private final class LockedData: @unchecked Sendable {
+    private let lock = NSLock()
+    private var data = Data()
+    func set(_ d: Data) { lock.lock(); data = d; lock.unlock() }
+    func get() -> Data { lock.lock(); defer { lock.unlock() }; return data }
 }
