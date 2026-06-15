@@ -36,6 +36,6 @@ public struct Persistence {
                                                 withIntermediateDirectories: true)
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        try encoder.encode(state).write(to: url)
+        try encoder.encode(state).write(to: url, options: .atomic)
     }
 }
