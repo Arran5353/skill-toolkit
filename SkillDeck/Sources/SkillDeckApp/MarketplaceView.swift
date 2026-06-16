@@ -13,11 +13,20 @@ struct MarketplaceView: View {
     }
 
     private func plugins(for marketplace: Node) -> [Node] {
-        let kids = store.children(of: marketplace.id)
+        var kids = store.children(of: marketplace.id)
         let q = query.lowercased().trimmingCharacters(in: .whitespaces)
-        guard !q.isEmpty else { return kids }
-        return kids.filter {
-            $0.name.lowercased().contains(q) || $0.description.lowercased().contains(q)
+        if !q.isEmpty {
+            kids = kids.filter {
+                $0.name.lowercased().contains(q) || $0.description.lowercased().contains(q)
+            }
+        }
+        // Installed plugins float to the top so they're not buried below the long
+        // list of available ones; alphabetical within each group.
+        return kids.sorted { a, b in
+            let aInstalled = a.status == .installed
+            let bInstalled = b.status == .installed
+            if aInstalled != bInstalled { return aInstalled }
+            return a.name.localizedCaseInsensitiveCompare(b.name) == .orderedAscending
         }
     }
 
