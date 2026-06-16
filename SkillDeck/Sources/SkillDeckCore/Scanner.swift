@@ -38,6 +38,8 @@ public struct Scanner {
                     scanCommandFiles(in: version.appendingPathComponent("commands").path,
                                      scope: .user, pluginName: pluginName,
                                      items: &items, warnings: &warnings)
+                    scanDeclaredSkills(versionDir: version, pluginName: pluginName,
+                                       items: &items, warnings: &warnings)
                 }
             }
         }
@@ -120,5 +122,53 @@ public struct Scanner {
             argumentHint: parsed.frontmatter["argument-hint"]
         )
         items.append(item)
+    }
+
+    // MARK: - plugin.json declared skill paths
+
+    private struct PluginManifest: Decodable { let skills: SkillsField? }
+
+    private enum SkillsField: Decodable {
+        case one(String)
+        case many([String])
+
+        init(from decoder: Decoder) throws {
+            let c = try decoder.singleValueContainer()
+            if let s = try? c.decode(String.self) { self = .one(s) }
+            else { self = .many((try? c.decode([String].self)) ?? []) }
+        }
+
+        var paths: [String] {
+            switch self {
+            case .one(let s): return [s]
+            case .many(let a): return a
+            }
+        }
+    }
+
+    private static func scanDeclaredSkills(versionDir: URL, pluginName: String,
+                                           items: inout [SkillItem], warnings: inout [ScanWarning]) {
+        let manifestPath = versionDir.appendingPathComponent(".claude-plugin/plugin.json")
+        guard let data = try? Data(contentsOf: manifestPath),
+              let manifest = try? JSONDecoder().decode(PluginManifest.self, from: data),
+              let field = manifest.skills else { return }
+        let fm = FileManager.default
+        for rel in field.paths {
+            let resolved = versionDir.appendingPathComponent(rel).standardizedFileURL
+            var isDir: ObjCBool = false
+            guard fm.fileExists(atPath: resolved.path, isDirectory: &isDir), isDir.boolValue else { continue }
+            let skillMd = resolved.appendingPathComponent("SKILL.md")
+            if fm.fileExists(atPath: skillMd.path) {
+                // single skill folder: parse it, AND scan its parent for sibling skills
+                appendParsed(file: skillMd.path, fallbackName: resolved.lastPathComponent, kind: .skill,
+                             scope: .user, pluginName: pluginName, items: &items, warnings: &warnings)
+                scanSkillDirs(in: resolved.deletingLastPathComponent().path, scope: .user,
+                              pluginName: pluginName, items: &items, warnings: &warnings)
+            } else {
+                // directory of skills
+                scanSkillDirs(in: resolved.path, scope: .user, pluginName: pluginName,
+                              items: &items, warnings: &warnings)
+            }
+        }
     }
 }
