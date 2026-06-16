@@ -43,6 +43,10 @@ public final class Installer {
 
     public static var isClaudeAvailable: Bool { resolveClaudeURL() != nil }
 
+    /// Maximum seconds to wait for `claude plugin install` before killing the child process.
+    /// Exposed as `internal` so unit tests can assert it is positive.
+    public nonisolated static let installTimeout: TimeInterval = _installTimeout
+
     /// Runs `claude plugin install <installRef>` in the background and tracks state by node id.
     public func install(_ node: Node) async {
         guard let ref = node.installRef else { return }
@@ -63,6 +67,8 @@ public final class Installer {
             let outPipe = Pipe()
             proc.standardError = errPipe
             proc.standardOutput = outPipe
+            // Redirect stdin to /dev/null so the child can never block waiting for input.
+            proc.standardInput = FileHandle.nullDevice
 
             // Drain BOTH pipes concurrently on background queues. A CLI like `claude` can
             // write more than the ~64KB pipe buffer to stdout; if we don't read it, the
@@ -80,23 +86,67 @@ public final class Installer {
                 }
             }
 
+            // Exactly-once resume guard: whichever path fires first (terminationHandler,
+            // timeout, or run() throw) wins; all subsequent calls are no-ops.
+            let resumed = LockedFlag()
+            // @Sendable so it can be captured in @Sendable closures (terminationHandler,
+            // DispatchWorkItem, etc.) without Swift 6 concurrency errors.
+            let resumeOnce: @Sendable (State) -> Void = { state in
+                guard resumed.setIfFalse() else { return }
+                cont.resume(returning: state)
+            }
+
+            // Box DispatchWorkItem in an @unchecked Sendable wrapper so it can be captured
+            // across concurrency boundaries without a Swift 6 error.
+            // DispatchWorkItem itself is thread-safe for cancel() calls.
+            let timeoutBox = SendableBox<DispatchWorkItem?>(nil)
+
             proc.terminationHandler = { p in
+                // Cancel any pending timeout work item so we don't needlessly terminate
+                // a process that has already exited cleanly.
+                timeoutBox.value?.cancel()
                 // Wait for both readers to finish so output is complete and FDs are closed.
                 group.wait()
                 if p.terminationStatus == 0 {
-                    cont.resume(returning: .succeeded)
+                    resumeOnce(.succeeded)
                 } else {
                     let msg = (String(data: errData.get(), encoding: .utf8) ?? "")
                         .trimmingCharacters(in: .whitespacesAndNewlines)
-                    cont.resume(returning: .failed(msg.isEmpty ? "exit \(p.terminationStatus)" : msg))
+                    resumeOnce(.failed(msg.isEmpty ? "exit \(p.terminationStatus)" : msg))
                 }
             }
-            do { try proc.run() } catch {
-                cont.resume(returning: .failed(error.localizedDescription))
+
+            do {
+                try proc.run()
+            } catch {
+                resumeOnce(.failed(error.localizedDescription))
+                return
             }
+
+            // Schedule a timeout after proc.run() succeeds. terminate() causes the process
+            // to exit, which fires terminationHandler — the resumed-once flag ensures only
+            // one of them actually resumes the continuation.
+            let timeoutItem = DispatchWorkItem {
+                if proc.isRunning { proc.terminate() }
+                // terminationHandler will also call resumeOnce after terminate(); call it
+                // here too so the timeout wins the race if the process exited between the
+                // isRunning check and terminate(). The loser is always a no-op.
+                resumeOnce(.failed("Install timed out after \(Int(installTimeout))s"))
+            }
+            timeoutBox.value = timeoutItem
+            DispatchQueue.global().asyncAfter(deadline: .now() + installTimeout,
+                                              execute: timeoutItem)
         }
     }
 }
+
+// MARK: - File-level constants (avoid @MainActor isolation on Installer statics)
+
+/// Backing value for `Installer.installTimeout`. Defined at file scope so it can be
+/// referenced from `nonisolated` contexts without actor-isolation errors.
+private let _installTimeout: TimeInterval = 180
+
+// MARK: - Helpers
 
 /// Minimal thread-safe Data box for collecting pipe output from a background queue.
 private final class LockedData: @unchecked Sendable {
@@ -104,4 +154,25 @@ private final class LockedData: @unchecked Sendable {
     private var data = Data()
     func set(_ d: Data) { lock.lock(); data = d; lock.unlock() }
     func get() -> Data { lock.lock(); defer { lock.unlock() }; return data }
+}
+
+/// Thread-safe Bool flag that can only transition false → true once.
+/// Used to guarantee a continuation is resumed exactly once.
+private final class LockedFlag: @unchecked Sendable {
+    private let lock = NSLock()
+    private var value = false
+    /// Sets the flag to true if it was false. Returns true if this call won the race.
+    func setIfFalse() -> Bool {
+        lock.lock(); defer { lock.unlock() }
+        if value { return false }
+        value = true
+        return true
+    }
+}
+
+/// Minimal @unchecked Sendable wrapper that lets a non-Sendable value (e.g. DispatchWorkItem)
+/// be captured across concurrency boundaries. The caller is responsible for thread safety.
+private final class SendableBox<T>: @unchecked Sendable {
+    var value: T
+    init(_ value: T) { self.value = value }
 }
