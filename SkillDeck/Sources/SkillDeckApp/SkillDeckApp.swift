@@ -72,7 +72,7 @@ struct SkillDeckApp: App {
 }
 
 enum SidebarFilter: Hashable {
-    case all, favorites, recents, commands, skills, localSkills, builtin, marketplace, diagnostics
+    case all, favorites, recents, commands, skills, localSkills, builtin, project, marketplace, diagnostics
 }
 
 // MARK: - Content Column

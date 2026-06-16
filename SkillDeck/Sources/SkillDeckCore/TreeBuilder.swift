@@ -37,6 +37,8 @@ public struct TreeBuilder {
             }
         }
 
+        var projectNames: Set<String> = []
+
         for item in skillItems {
             let parentID: String
             let kind: NodeKind
@@ -45,8 +47,9 @@ public struct TreeBuilder {
                 ensureRoot(builtinRootID, "Built-in commands")
                 parentID = builtinRootID
                 kind = .builtinCommand
-            case .project:
-                ensureRoot(projectRootID, "Project")
+            case .project(let projectName):
+                ensureRoot(projectRootID, "Project")   // placeholder; renamed below
+                projectNames.insert(projectName)
                 parentID = projectRootID
                 kind = (item.kind == .skill) ? .skill : .command
             case .user:
@@ -72,6 +75,21 @@ public struct TreeBuilder {
             add(Node(id: item.id, kind: kind, name: item.name, description: item.description,
                      status: .notApplicable, parentID: parentID,
                      body: item.body, insertText: item.insertText, filePath: item.filePath))
+        }
+
+        // Rename the project root to include the project name(s) so users know what it is.
+        if !projectNames.isEmpty, let idx = out.firstIndex(where: { $0.id == projectRootID }) {
+            let label: String
+            if projectNames.count == 1, let name = projectNames.first {
+                // Use only the last path component for brevity (e.g. "Desktop/Cocktail-expert" → "Cocktail-expert")
+                let shortName = name.split(separator: "/").last.map(String.init) ?? name
+                label = "Project: \(shortName)"
+            } else {
+                label = "Projects (\(projectNames.count))"
+            }
+            let old = out[idx]
+            out[idx] = Node(id: old.id, kind: old.kind, name: label, description: old.description,
+                            status: old.status, parentID: old.parentID)
         }
 
         return out

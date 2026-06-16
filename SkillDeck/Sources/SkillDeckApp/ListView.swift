@@ -18,15 +18,17 @@ struct ListView: View {
         case .recents:
             base = store.recentItems(limit: 50)
         case .commands:
-            // Only plugin/project commands here; built-in slash commands have their own filter.
-            base = store.nodes.filter { $0.kind == .command }
+            // Exclude project-scoped commands; those appear under the dedicated Project filter.
+            base = store.nodes.filter { $0.kind == .command && $0.parentID != TreeBuilder.projectRootID }
         case .skills:
-            // Only plugin/project skills here; user-placed local skills have their own filter.
-            base = store.nodes.filter { $0.kind == .skill }
+            // Exclude project-scoped skills; those appear under the dedicated Project filter.
+            base = store.nodes.filter { $0.kind == .skill && $0.parentID != TreeBuilder.projectRootID }
         case .localSkills:
             base = store.nodes.filter { $0.kind == .localSkill }
         case .builtin:
             base = store.nodes.filter { $0.kind == .builtinCommand }
+        case .project:
+            base = store.nodes.filter { $0.parentID == TreeBuilder.projectRootID }
         case .marketplace, .diagnostics:
             base = []
         }

@@ -70,6 +70,29 @@ final class TreeBuilderTests: XCTestCase {
         XCTAssertNotNil(nodes.first { $0.id == "plugin|superpowers" && $0.kind == .plugin })
     }
 
+    func test_project_root_label_includes_project_name() {
+        let item = SkillItem(name: "impeccable", kind: .skill, scope: .project("Desktop/Cocktail-expert"),
+                             pluginName: nil, description: "", body: "", filePath: "/x",
+                             insertText: "use the impeccable skill")
+        let nodes = TreeBuilder.build(skillItems: [item], marketplaceNodes: [])
+        let root = nodes.first { $0.id == TreeBuilder.projectRootID }!
+        XCTAssertTrue(root.name.contains("Cocktail-expert"))
+    }
+
+    func test_project_root_label_multiple_projects() {
+        let items = [
+            SkillItem(name: "a", kind: .skill, scope: .project("Desktop/Proj-A"),
+                      pluginName: nil, description: "", body: "", filePath: "/a",
+                      insertText: "use the a skill"),
+            SkillItem(name: "b", kind: .skill, scope: .project("Desktop/Proj-B"),
+                      pluginName: nil, description: "", body: "", filePath: "/b",
+                      insertText: "use the b skill"),
+        ]
+        let nodes = TreeBuilder.build(skillItems: items, marketplaceNodes: [])
+        let root = nodes.first { $0.id == TreeBuilder.projectRootID }!
+        XCTAssertTrue(root.name.contains("2"), "Expected count in label, got: \(root.name)")
+    }
+
     func test_same_named_plugins_across_marketplaces_documents_current_behavior() {
         // Two marketplaces each declare a plugin named "shared". A leaf for "shared" is parented
         // to ONE of them (last-write-wins on the name index). This documents current behavior;
