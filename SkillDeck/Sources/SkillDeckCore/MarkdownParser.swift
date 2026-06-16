@@ -9,6 +9,7 @@ public enum MarkdownBlock: Equatable, Sendable {
     case quote(String)
     case paragraph(String)
     case code(String, language: String?)
+    case table(header: [String], rows: [[String]])
 }
 
 public struct MarkdownParser {
@@ -113,6 +114,32 @@ public struct MarkdownParser {
             if raw.hasPrefix("\t") { return String(raw.dropFirst()) }
             if raw.hasPrefix("    ") { return String(raw.dropFirst(4)) }
             return raw
+        }
+
+        /// Splits a pipe-table row into trimmed cells.
+        /// Handles optional leading/trailing pipes.
+        func splitTableRow(_ line: String) -> [String] {
+            var s = line.trimmingCharacters(in: .whitespaces)
+            if s.hasPrefix("|") { s = String(s.dropFirst()) }
+            if s.hasSuffix("|") { s = String(s.dropLast()) }
+            return s.components(separatedBy: "|").map { $0.trimmingCharacters(in: .whitespaces) }
+        }
+
+        /// Returns true if the trimmed line is a GFM separator row (cells are dashes ± colons).
+        func isSeparatorRow(_ line: String) -> Bool {
+            let cells = splitTableRow(line)
+            guard !cells.isEmpty else { return false }
+            for cell in cells {
+                // Cell must contain at least one dash and only dashes and colons
+                guard cell.contains("-"),
+                      cell.allSatisfy({ $0 == "-" || $0 == ":" || $0 == " " }) else { return false }
+            }
+            return true
+        }
+
+        /// Returns true if the trimmed line looks like a table row (contains `|`).
+        func isTableRow(_ line: String) -> Bool {
+            return line.contains("|")
         }
 
         /// Returns true if the trimmed line opens a fence (``` or ~~~) of ≥3 marker chars.
@@ -236,6 +263,29 @@ public struct MarkdownParser {
                 lastBlockWasList = false
                 // Don't increment i — the outer loop will handle the next line
                 continue
+            }
+
+            // ── GFM pipe table ───────────────────────────────────────────────
+            // Only try when not in a fence, current line has a pipe, and the
+            // very next line is a valid separator row.
+            if isTableRow(trimmed) && (i + 1) < rawLines.count {
+                let nextTrimmed = rawLines[i + 1].trimmingCharacters(in: .whitespaces)
+                if isSeparatorRow(nextTrimmed) {
+                    flushParagraph()
+                    let header = splitTableRow(trimmed)
+                    // Skip header line and separator line
+                    i += 2
+                    var dataRows: [[String]] = []
+                    while i < rawLines.count {
+                        let rowTrimmed = rawLines[i].trimmingCharacters(in: .whitespaces)
+                        if rowTrimmed.isEmpty || !isTableRow(rowTrimmed) { break }
+                        dataRows.append(splitTableRow(rowTrimmed))
+                        i += 1
+                    }
+                    blocks.append(.table(header: header, rows: dataRows))
+                    lastBlockWasList = false
+                    continue
+                }
             }
 
             // ── Paragraph ────────────────────────────────────────────────────

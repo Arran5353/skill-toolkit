@@ -41,4 +41,32 @@ final class MarkdownParserTests: XCTestCase {
         let blocks = MarkdownParser.parse("1. first\n\n> a quote")
         XCTAssertEqual(blocks, [.numbered(1, "first"), .quote("a quote")])
     }
+
+    // MARK: - Table tests
+
+    func test_simple_table() {
+        let src = "| Name | Role |\n|------|------|\n| Ada | Eng |\n| Bo | PM |"
+        let blocks = MarkdownParser.parse(src)
+        XCTAssertEqual(blocks, [.table(header: ["Name", "Role"],
+                                       rows: [["Ada", "Eng"], ["Bo", "PM"]])])
+    }
+
+    func test_table_without_outer_pipes() {
+        let src = "a | b\n--- | ---\n1 | 2"
+        let blocks = MarkdownParser.parse(src)
+        XCTAssertEqual(blocks, [.table(header: ["a", "b"], rows: [["1", "2"]])])
+    }
+
+    func test_header_without_separator_is_not_table() {
+        let src = "| just | pipes |\nnext line"
+        let blocks = MarkdownParser.parse(src)
+        // not a table — rendered as paragraph(s)
+        for b in blocks { if case .table = b { XCTFail("should not be a table") } }
+    }
+
+    func test_table_with_alignment_colons() {
+        let src = "| L | C | R |\n|:--|:-:|--:|\n| 1 | 2 | 3 |"
+        let blocks = MarkdownParser.parse(src)
+        XCTAssertEqual(blocks, [.table(header: ["L","C","R"], rows: [["1","2","3"]])])
+    }
 }
