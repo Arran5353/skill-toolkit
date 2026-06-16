@@ -1,4 +1,5 @@
 import SwiftUI
+import SkillDeckCore
 
 /// A readable, styled Markdown renderer for skill/command usage bodies.
 ///
@@ -7,12 +8,14 @@ import SwiftUI
 /// fenced code, blockquotes, paragraphs) and render each with a distinct visual treatment —
 /// accent-barred headings, colored list markers, code "cards", and tinted inline code — so
 /// the usage reads like documentation rather than raw text.
+///
+/// Parsing is delegated to `MarkdownParser` in SkillDeckCore so it can be unit-tested.
 struct MarkdownText: View {
-    private let blocks: [Block]
+    private let blocks: [MarkdownBlock]
     var accent: Color = .accentColor
 
     init(_ source: String, accent: Color = .accentColor) {
-        self.blocks = MarkdownText.parse(source)
+        self.blocks = MarkdownParser.parse(source)
         self.accent = accent
     }
 
@@ -26,7 +29,7 @@ struct MarkdownText: View {
     }
 
     @ViewBuilder
-    private func view(for block: Block) -> some View {
+    private func view(for block: MarkdownBlock) -> some View {
         switch block {
         case .heading(let level, let text):
             HStack(alignment: .firstTextBaseline, spacing: 8) {
@@ -77,14 +80,14 @@ struct MarkdownText: View {
             inline(text)
                 .fixedSize(horizontal: false, vertical: true)
 
-        case .code(let code, let lang):
+        case .code(let code, let language):
             VStack(alignment: .leading, spacing: 0) {
                 HStack(spacing: 6) {
                     Circle().fill(Color.red.opacity(0.55)).frame(width: 8, height: 8)
                     Circle().fill(Color.yellow.opacity(0.55)).frame(width: 8, height: 8)
                     Circle().fill(Color.green.opacity(0.55)).frame(width: 8, height: 8)
                     Spacer()
-                    if let lang, !lang.isEmpty {
+                    if let lang = language, !lang.isEmpty {
                         Text(lang.uppercased())
                             .font(.system(size: 9, weight: .bold, design: .monospaced))
                             .foregroundStyle(.secondary)
@@ -132,107 +135,5 @@ struct MarkdownText: View {
         case 2: return .system(.title3, design: .rounded)
         default: return .system(.headline, design: .rounded)
         }
-    }
-
-    // MARK: - Parsing
-
-    private enum Block {
-        case heading(level: Int, text: String)
-        case bullet(text: String, depth: Int)
-        case numbered(Int, String)
-        case quote(String)
-        case paragraph(String)
-        case code(String, lang: String?)
-    }
-
-    private static func parse(_ source: String) -> [Block] {
-        var blocks: [Block] = []
-        var paragraph: [String] = []
-        var codeLines: [String] = []
-        var inCode = false
-        var codeLang: String?
-
-        func flushParagraph() {
-            let joined = paragraph.joined(separator: " ").trimmingCharacters(in: .whitespaces)
-            if !joined.isEmpty { blocks.append(.paragraph(joined)) }
-            paragraph.removeAll()
-        }
-        func flushCode() {
-            blocks.append(.code(codeLines.joined(separator: "\n"), lang: codeLang))
-            codeLines.removeAll()
-            codeLang = nil
-        }
-
-        for rawLine in source.components(separatedBy: "\n") {
-            let line = rawLine
-            let trimmed = line.trimmingCharacters(in: .whitespaces)
-
-            if trimmed.hasPrefix("```") {
-                if inCode { flushCode(); inCode = false }
-                else {
-                    flushParagraph()
-                    inCode = true
-                    let lang = String(trimmed.dropFirst(3)).trimmingCharacters(in: .whitespaces)
-                    codeLang = lang.isEmpty ? nil : lang
-                }
-                continue
-            }
-            if inCode { codeLines.append(line); continue }
-
-            if trimmed.isEmpty { flushParagraph(); continue }
-
-            if let h = heading(trimmed) {
-                flushParagraph(); blocks.append(.heading(level: h.0, text: h.1)); continue
-            }
-            if let q = quoteText(trimmed) {
-                flushParagraph(); blocks.append(.quote(q)); continue
-            }
-            if let num = numberedText(trimmed) {
-                flushParagraph(); blocks.append(.numbered(num.0, num.1)); continue
-            }
-            if let b = bulletText(line) {
-                flushParagraph(); blocks.append(.bullet(text: b.0, depth: b.1)); continue
-            }
-            paragraph.append(trimmed)
-        }
-        if inCode { flushCode() } else { flushParagraph() }
-        return blocks
-    }
-
-    private static func heading(_ line: String) -> (Int, String)? {
-        guard line.hasPrefix("#") else { return nil }
-        var level = 0
-        var idx = line.startIndex
-        while idx < line.endIndex, line[idx] == "#", level < 6 {
-            level += 1; idx = line.index(after: idx)
-        }
-        let text = String(line[idx...]).trimmingCharacters(in: .whitespaces)
-        return text.isEmpty ? nil : (level, text)
-    }
-
-    private static func quoteText(_ line: String) -> String? {
-        guard line.hasPrefix(">") else { return nil }
-        return String(line.dropFirst()).trimmingCharacters(in: .whitespaces)
-    }
-
-    private static func numberedText(_ line: String) -> (Int, String)? {
-        // matches "1. text" / "12) text"
-        var digits = ""
-        var idx = line.startIndex
-        while idx < line.endIndex, line[idx].isNumber { digits.append(line[idx]); idx = line.index(after: idx) }
-        guard !digits.isEmpty, idx < line.endIndex, line[idx] == "." || line[idx] == ")" else { return nil }
-        let rest = String(line[line.index(after: idx)...]).trimmingCharacters(in: .whitespaces)
-        guard !rest.isEmpty, let n = Int(digits) else { return nil }
-        return (n, rest)
-    }
-
-    private static func bulletText(_ rawLine: String) -> (String, Int)? {
-        let leading = rawLine.prefix { $0 == " " || $0 == "\t" }
-        let depth = min(leading.filter { $0 == " " }.count / 2 + leading.filter { $0 == "\t" }.count, 3)
-        let trimmed = rawLine.trimmingCharacters(in: .whitespaces)
-        for marker in ["- ", "* ", "+ "] where trimmed.hasPrefix(marker) {
-            return (String(trimmed.dropFirst(marker.count)).trimmingCharacters(in: .whitespaces), depth)
-        }
-        return nil
     }
 }
