@@ -116,7 +116,8 @@ public struct Scanner {
             name: name, kind: kind, scope: scope, pluginName: pluginName,
             description: parsed.frontmatter["description"] ?? "",
             body: parsed.body, filePath: file,
-            insertText: Injector.defaultInsertText(kind: kind, name: name)
+            insertText: Injector.defaultInsertText(kind: kind, name: name),
+            argumentHint: parsed.frontmatter["argument-hint"]
         )
         items.append(item)
     }

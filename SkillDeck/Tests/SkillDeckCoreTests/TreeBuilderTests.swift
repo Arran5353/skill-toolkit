@@ -93,6 +93,19 @@ final class TreeBuilderTests: XCTestCase {
         XCTAssertTrue(root.name.contains("2"), "Expected count in label, got: \(root.name)")
     }
 
+    func test_skill_subcommands_become_child_nodes() {
+        let item = SkillItem(name: "impeccable", kind: .skill, scope: .user, pluginName: "impeccable",
+                             description: "", body: "", filePath: "/x",
+                             insertText: "use the impeccable skill",
+                             argumentHint: "[craft|polish] [target]")
+        let nodes = TreeBuilder.build(skillItems: [item], marketplaceNodes: [])
+        let skill = nodes.first { $0.name == "impeccable" && $0.kind == .skill }!
+        let subs = nodes.filter { $0.parentID == skill.id && $0.kind == .command }
+        XCTAssertEqual(Set(subs.map { $0.name }), ["craft", "polish"])
+        let craft = subs.first { $0.name == "craft" }!
+        XCTAssertEqual(craft.insertText, "/impeccable craft")
+    }
+
     func test_same_named_plugins_across_marketplaces_documents_current_behavior() {
         // Two marketplaces each declare a plugin named "shared". A leaf for "shared" is parented
         // to ONE of them (last-write-wins on the name index). This documents current behavior;

@@ -72,9 +72,30 @@ public struct TreeBuilder {
                     kind = (item.kind == .skill) ? .localSkill : .command
                 }
             }
-            add(Node(id: item.id, kind: kind, name: item.name, description: item.description,
-                     status: .notApplicable, parentID: parentID,
-                     body: item.body, insertText: item.insertText, filePath: item.filePath))
+            let skillNode = Node(id: item.id, kind: kind, name: item.name, description: item.description,
+                                 status: .notApplicable, parentID: parentID,
+                                 body: item.body, insertText: item.insertText, filePath: item.filePath)
+            add(skillNode)
+
+            // For skill/localSkill kinds, emit sub-command child nodes from argument-hint
+            if kind == .skill || kind == .localSkill {
+                let subs = ArgumentHintParser.subcommands(from: item.argumentHint ?? "")
+                // Determine the invocation prefix: plugin skills use "/<pluginName> <sub>",
+                // local skills use "/<skillName> <sub>"
+                let invocationBase: String
+                if let plugin = item.pluginName {
+                    invocationBase = "/\(plugin)"
+                } else {
+                    invocationBase = "/\(item.name)"
+                }
+                for sub in subs {
+                    let childID = "\(item.id)|sub|\(sub)"
+                    let childInsertText = "\(invocationBase) \(sub)"
+                    add(Node(id: childID, kind: .command, name: sub, description: "",
+                             status: .notApplicable, parentID: item.id,
+                             body: nil, insertText: childInsertText, filePath: nil))
+                }
+            }
         }
 
         // Rename the project root to include the project name(s) so users know what it is.
