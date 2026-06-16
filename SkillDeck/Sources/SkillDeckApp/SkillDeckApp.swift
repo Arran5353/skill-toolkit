@@ -91,6 +91,21 @@ struct ContentColumn: View {
             DiagnosticsView(store: store)
         case .all:
             TreeListView(store: store, selection: $selection)
+        case .skills:
+            TreeListView(store: store, selection: $selection,
+                         leafKinds: [.skill, .localSkill])
+        case .commands:
+            TreeListView(store: store, selection: $selection,
+                         leafKinds: [.command, .builtinCommand])
+        case .localSkills:
+            TreeListView(store: store, selection: $selection,
+                         leafKinds: [.localSkill])
+        case .builtin:
+            TreeListView(store: store, selection: $selection,
+                         leafKinds: [.builtinCommand])
+        case .project:
+            TreeListView(store: store, selection: $selection,
+                         rootFilter: { $0.id == TreeBuilder.projectRootID })
         default:
             ListView(store: store, filter: filter, selection: $selection)
         }
