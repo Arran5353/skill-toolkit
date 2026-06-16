@@ -98,7 +98,13 @@ struct MarkdownText: View {
                 .background(Color.primary.opacity(0.05))
 
                 ScrollView(.horizontal, showsIndicators: false) {
-                    Text(code)
+                    let tokens = SyntaxHighlighter.tokenize(code, language: language)
+                    let colored: Text = tokens.reduce(Text("")) { acc, t in
+                        let segment = Text(t.text)
+                            .foregroundStyle(codeColor(t.kind))
+                        return t.kind == .comment ? acc + segment.italic() : acc + segment
+                    }
+                    colored
                         .font(.system(size: 12.5, design: .monospaced))
                         .textSelection(.enabled)
                         .padding(12)
@@ -154,6 +160,17 @@ struct MarkdownText: View {
             attr[run.range].font = .system(.body, design: .monospaced)
         }
         return Text(attr)
+    }
+
+    private func codeColor(_ kind: TokenKind) -> Color {
+        switch kind {
+        case .plain:    return .primary
+        case .keyword:  return Color(red: 0.80, green: 0.30, blue: 0.55)
+        case .string:   return Color(red: 0.20, green: 0.55, blue: 0.30)
+        case .comment:  return Color.secondary
+        case .number:   return Color(red: 0.80, green: 0.45, blue: 0.10)
+        case .type:     return Color(red: 0.20, green: 0.50, blue: 0.70)
+        }
     }
 
     private func headingFont(_ level: Int) -> Font {
