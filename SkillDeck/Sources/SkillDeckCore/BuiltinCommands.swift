@@ -1,16 +1,19 @@
 import Foundation
 
 public struct BuiltinCommands {
-    private struct Entry: Decodable { let name: String; let description: String }
+    /// Claude Code's built-in slash commands. Inlined (not a bundled resource) so it works
+    /// identically under `swift run` and inside a packaged .app — no Bundle.module lookup,
+    /// which is fragile across packaging layouts. Community PRs: edit this list.
+    private static let entries: [(name: String, description: String)] = [
+        ("clear",  "Clear the conversation history and free up context."),
+        ("config", "Open the Claude Code settings/config UI."),
+        ("review", "Review a pull request."),
+        ("init",   "Initialize a new CLAUDE.md with codebase documentation."),
+        ("help",   "Show help and available commands."),
+    ]
 
-    /// Loads built-in commands bundled with the SkillDeckCore module.
     public static func load() -> [SkillItem] {
-        guard let url = Bundle.module.url(forResource: "builtin-commands", withExtension: "json"),
-              let data = try? Data(contentsOf: url),
-              let entries = try? JSONDecoder().decode([Entry].self, from: data) else {
-            return []
-        }
-        return entries.map { e in
+        entries.map { e in
             SkillItem(name: e.name, kind: .builtinCommand, scope: .builtin,
                       pluginName: nil, description: e.description, body: "",
                       filePath: nil,

@@ -6,8 +6,7 @@ let package = Package(
     platforms: [.macOS(.v15)],
     targets: [
         .target(
-            name: "SkillDeckCore",
-            resources: [.copy("builtin-commands.json")]
+            name: "SkillDeckCore"
         ),
         .executableTarget(
             name: "SkillDeckApp",

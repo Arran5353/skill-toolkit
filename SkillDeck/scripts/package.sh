@@ -38,11 +38,8 @@ mkdir -p "$MACOS_DIR" "$RES_DIR"
 # Copy the executable, named after the app.
 cp "$BIN_PATH/$EXECUTABLE" "$MACOS_DIR/$APP_NAME"
 
-# Copy the SwiftPM resource bundle(s) into Resources/. Bundle.module finds them
-# there, and codesign requires nested bundles to live under Resources/ (not MacOS/).
-for b in "$BIN_PATH"/*.bundle; do
-  [ -e "$b" ] && cp -R "$b" "$RES_DIR/" || true
-done
+# (No SwiftPM resource bundle to copy — built-in commands are inlined in source,
+# which avoids a Bundle.module lookup that crashes in a packaged .app.)
 
 # Info.plist
 cat > "$CONTENTS/Info.plist" <<PLIST
