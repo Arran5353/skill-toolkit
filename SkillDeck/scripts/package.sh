@@ -14,7 +14,7 @@ set -euo pipefail
 APP_NAME="SkillDeck"
 EXECUTABLE="SkillDeckApp"           # SwiftPM product name
 BUNDLE_ID="com.skilldeck.app"
-VERSION="1.0.0"
+VERSION="1.0.0"  # Keep in sync with UpdateChecker.fallbackVersion
 MIN_MACOS="15.0"
 
 # --- paths ------------------------------------------------------------------

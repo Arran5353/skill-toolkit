@@ -10,6 +10,7 @@ struct SkillDeckApp: App {
     @State private var selection: String?
     @State private var sidebarFilter: SidebarFilter = .all
     @State private var claudeAvailable: Bool = false
+    @State private var updateAvailable: UpdateChecker.Release?
 
     var body: some Scene {
         Window("SkillDeck", id: "main") {
@@ -36,7 +37,9 @@ struct SkillDeckApp: App {
         }
 
         MenuBarExtra("SkillDeck", systemImage: "command.square") {
-            MenuBarView(store: store, tracker: tracker)
+            MenuBarView(store: store, tracker: tracker,
+                        updateAvailable: updateAvailable,
+                        onCheckForUpdates: { checkForUpdates(silent: false) })
         }
         .menuBarExtraStyle(.menu)
     }
@@ -46,6 +49,7 @@ struct SkillDeckApp: App {
         claudeAvailable = Installer.isClaudeAvailable
         tracker.start()
         reload()
+        checkForUpdates(silent: true)
         let home = FileManager.default.homeDirectoryForCurrentUser.path
         let newWatcher = FileWatcher(
             paths: ["\(home)/.claude/skills", "\(home)/.claude/plugins"],
@@ -61,6 +65,18 @@ struct SkillDeckApp: App {
             let result = await Self.scan(home: home)
             store.setNodes(result.nodes)
             store.setWarnings(result.warnings)
+        }
+    }
+
+    @MainActor private func checkForUpdates(silent: Bool) {
+        let current = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String
+            ?? UpdateChecker.fallbackVersion
+        Task {
+            if let rel = await UpdateChecker.checkForUpdate(current: current) {
+                updateAvailable = rel
+            } else if !silent {
+                updateAvailable = nil
+            }
         }
     }
 
