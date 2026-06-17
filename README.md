@@ -1,6 +1,8 @@
 <div align="center">
 
-# 🎛️ SkillDeck
+<img src="SkillDeck/docs/icon.png" width="120" alt="SkillDeck icon" />
+
+# SkillDeck
 
 ### Your Claude Code skills & commands, finally at your fingertips.
 
