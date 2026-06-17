@@ -34,17 +34,6 @@ public final class AppStore {
         nodes.filter { $0.parentID == nil }
     }
 
-    /// Convenience full-catalog search (name + description). Not currently called by the app UI, which filters inline; provided for extensions/tests.
-    /// Case-insensitive match over name + description. Empty query = all nodes.
-    public func search(_ query: String) -> [Node] {
-        let q = query.lowercased().trimmingCharacters(in: .whitespaces)
-        guard !q.isEmpty else { return nodes }
-        return nodes.filter {
-            $0.name.lowercased().contains(q)
-            || $0.description.lowercased().contains(q)
-        }
-    }
-
     // MARK: - Favorites
     public func isFavorite(_ id: String) -> Bool { state.favorites.contains(id) }
     public func toggleFavorite(_ id: String) {

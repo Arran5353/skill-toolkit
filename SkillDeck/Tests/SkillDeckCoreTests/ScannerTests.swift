@@ -103,4 +103,46 @@ final class ScannerTests: XCTestCase {
         XCTAssertNotNil(result.items.first { $0.name == "broken" })
         XCTAssertFalse(result.warnings.isEmpty)
     }
+
+    func test_scans_plugin_skills_at_custom_plugin_json_path() throws {
+        let fm = FileManager.default
+        let root = fm.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        func write(_ rel: String, _ s: String) throws {
+            let u = root.appendingPathComponent(rel)
+            try fm.createDirectory(at: u.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try s.write(to: u, atomically: true, encoding: .utf8)
+        }
+        // plugin with NO standard skills/ dir; skills under .claude/skills, declared in plugin.json
+        let base = "cache/mp/uux/2.5.0"
+        try write("\(base)/.claude-plugin/plugin.json",
+                  "{\"name\":\"uux\",\"skills\":[\"./.claude/skills/uux\"]}")
+        try write("\(base)/.claude/skills/uux/SKILL.md", "---\nname: uux\ndescription: main\n---\nbody")
+        try write("\(base)/.claude/skills/design/SKILL.md", "---\nname: design\ndescription: d\n---\nbody")
+        try write("\(base)/.claude/skills/brand/SKILL.md", "---\nname: brand\ndescription: b\n---\nbody")
+
+        let result = Scanner.scan(userSkillsDir: "/nope",
+                                  pluginsCacheDir: root.appendingPathComponent("cache").path,
+                                  projectDirs: [], includeBuiltins: false)
+        let names = Set(result.items.filter { $0.kind == .skill }.map { $0.name })
+        // declared skill + siblings all found, attributed to plugin "uux"
+        XCTAssertTrue(names.contains("uux"))
+        XCTAssertTrue(names.contains("design"))
+        XCTAssertTrue(names.contains("brand"))
+        XCTAssertTrue(result.items.contains { $0.name == "design" && $0.pluginName == "uux" })
+    }
+
+    func test_standard_layout_still_works_with_manifest_absent() throws {
+        let fm = FileManager.default
+        let root = fm.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        func write(_ rel: String, _ s: String) throws {
+            let u = root.appendingPathComponent(rel)
+            try fm.createDirectory(at: u.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try s.write(to: u, atomically: true, encoding: .utf8)
+        }
+        try write("cache/mp/sp/5.1.0/skills/tdd/SKILL.md", "---\nname: tdd\ndescription: t\n---\nb")
+        let result = Scanner.scan(userSkillsDir: "/nope",
+                                  pluginsCacheDir: root.appendingPathComponent("cache").path,
+                                  projectDirs: [], includeBuiltins: false)
+        XCTAssertTrue(result.items.contains { $0.name == "tdd" && $0.pluginName == "sp" })
+    }
 }

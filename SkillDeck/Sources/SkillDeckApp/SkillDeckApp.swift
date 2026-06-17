@@ -31,6 +31,7 @@ struct SkillDeckApp: App {
                 )
             }
             .frame(minWidth: 820, minHeight: 480)
+            .frame(idealWidth: 1180, idealHeight: 760)
             .onAppear { bootstrap() }
         }
 
@@ -71,7 +72,7 @@ struct SkillDeckApp: App {
 }
 
 enum SidebarFilter: Hashable {
-    case all, favorites, recents, commands, skills, localSkills, builtin, marketplace, diagnostics
+    case all, favorites, recents, commands, skills, localSkills, builtin, project, mcp, marketplace, diagnostics
 }
 
 // MARK: - Content Column
@@ -90,6 +91,24 @@ struct ContentColumn: View {
             DiagnosticsView(store: store)
         case .all:
             TreeListView(store: store, selection: $selection)
+        case .skills:
+            TreeListView(store: store, selection: $selection,
+                         leafKinds: [.skill, .localSkill])
+        case .commands:
+            TreeListView(store: store, selection: $selection,
+                         leafKinds: [.command, .builtinCommand])
+        case .localSkills:
+            TreeListView(store: store, selection: $selection,
+                         leafKinds: [.localSkill])
+        case .builtin:
+            TreeListView(store: store, selection: $selection,
+                         leafKinds: [.builtinCommand])
+        case .project:
+            TreeListView(store: store, selection: $selection,
+                         rootFilter: { $0.id == TreeBuilder.projectRootID })
+        case .mcp:
+            TreeListView(store: store, selection: $selection,
+                         leafKinds: [.mcpServer])
         default:
             ListView(store: store, filter: filter, selection: $selection)
         }
@@ -110,7 +129,10 @@ struct DetailColumn: View {
             case .plugin:
                 PluginDetailView(store: store, node: node, claudeAvailable: claudeAvailable)
             case .marketplace:
-                GroupPlaceholder(name: node.name, subtitle: "Marketplace")
+                GroupPlaceholder(name: node.name,
+                                 subtitle: node.id.hasPrefix("mp|") ? "Marketplace" : "")
+            case .mcpServer:
+                MCPDetailView(node: node)
             case .skill, .command, .builtinCommand, .localSkill:
                 DetailView(store: store, tracker: tracker, selection: $selection)
             }

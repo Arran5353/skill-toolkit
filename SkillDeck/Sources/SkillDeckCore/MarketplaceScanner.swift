@@ -13,12 +13,6 @@ public struct MarketplaceScanner {
         struct Entry: Decodable { let name: String; let description: String? }
     }
 
-    /// Convenience wrapper over scan(...) using the standard ~/.claude layout. CatalogLoader calls scan(...) directly; kept for standalone use/tests.
-    public static func scanDefault(installed: Set<String>) -> Result {
-        let home = FileManager.default.homeDirectoryForCurrentUser.path
-        return scan(marketplacesDir: "\(home)/.claude/plugins/marketplaces", installed: installed)
-    }
-
     public static func scan(marketplacesDir: String, installed: Set<String>) -> Result {
         let fm = FileManager.default
         var nodes: [Node] = []

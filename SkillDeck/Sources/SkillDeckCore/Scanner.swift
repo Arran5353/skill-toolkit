@@ -6,17 +6,6 @@ public struct Scanner {
         public let warnings: [ScanWarning]
     }
 
-    /// Convenience wrapper over scan(...) using the standard ~/.claude layout. CatalogLoader calls scan(...) directly; kept for standalone use/tests.
-    public static func scanDefault(projectDirs: [String]) -> Result {
-        let home = FileManager.default.homeDirectoryForCurrentUser.path
-        return scan(
-            userSkillsDir: "\(home)/.claude/skills",
-            pluginsCacheDir: "\(home)/.claude/plugins/cache",
-            projectDirs: projectDirs,
-            includeBuiltins: true
-        )
-    }
-
     public static func scan(userSkillsDir: String, pluginsCacheDir: String,
                             projectDirs: [String], includeBuiltins: Bool) -> Result {
         var items: [SkillItem] = []
@@ -38,6 +27,8 @@ public struct Scanner {
                     scanCommandFiles(in: version.appendingPathComponent("commands").path,
                                      scope: .user, pluginName: pluginName,
                                      items: &items, warnings: &warnings)
+                    scanDeclaredSkills(versionDir: version, pluginName: pluginName,
+                                       items: &items, warnings: &warnings)
                 }
             }
         }
@@ -116,8 +107,48 @@ public struct Scanner {
             name: name, kind: kind, scope: scope, pluginName: pluginName,
             description: parsed.frontmatter["description"] ?? "",
             body: parsed.body, filePath: file,
-            insertText: Injector.defaultInsertText(kind: kind, name: name)
+            insertText: Injector.defaultInsertText(kind: kind, name: name),
+            argumentHint: parsed.frontmatter["argument-hint"]
         )
         items.append(item)
+    }
+
+    // MARK: - plugin.json declared skill paths
+
+    private struct PluginManifest: Decodable {
+        let skills: [String]
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            if let many = try? c.decode([String].self, forKey: .skills) { skills = many }
+            else if let one = try? c.decode(String.self, forKey: .skills) { skills = [one] }
+            else { skills = [] }
+        }
+        enum CodingKeys: String, CodingKey { case skills }
+    }
+
+    private static func scanDeclaredSkills(versionDir: URL, pluginName: String,
+                                           items: inout [SkillItem], warnings: inout [ScanWarning]) {
+        let manifestPath = versionDir.appendingPathComponent(".claude-plugin/plugin.json")
+        guard let data = try? Data(contentsOf: manifestPath),
+              let manifest = try? JSONDecoder().decode(PluginManifest.self, from: data),
+              !manifest.skills.isEmpty else { return }
+        let fm = FileManager.default
+        for rel in manifest.skills {
+            let resolved = versionDir.appendingPathComponent(rel).standardizedFileURL
+            var isDir: ObjCBool = false
+            guard fm.fileExists(atPath: resolved.path, isDirectory: &isDir), isDir.boolValue else { continue }
+            let skillMd = resolved.appendingPathComponent("SKILL.md")
+            if fm.fileExists(atPath: skillMd.path) {
+                // single skill folder: parse it, AND scan its parent for sibling skills
+                appendParsed(file: skillMd.path, fallbackName: resolved.lastPathComponent, kind: .skill,
+                             scope: .user, pluginName: pluginName, items: &items, warnings: &warnings)
+                scanSkillDirs(in: resolved.deletingLastPathComponent().path, scope: .user,
+                              pluginName: pluginName, items: &items, warnings: &warnings)
+            } else {
+                // directory of skills
+                scanSkillDirs(in: resolved.path, scope: .user, pluginName: pluginName,
+                              items: &items, warnings: &warnings)
+            }
+        }
     }
 }

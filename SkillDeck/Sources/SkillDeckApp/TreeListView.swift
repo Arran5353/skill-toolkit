@@ -8,12 +8,19 @@ struct NodeRow: View {
     let isFavorite: Bool
 
     var body: some View {
-        HStack {
-            Image(systemName: iconName(for: node.kind))
-                .foregroundStyle(iconColor(for: node.kind))
-                .frame(width: 16)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(node.name).font(.body)
+        let accent = NodeTheme.accent(node.kind)
+        HStack(spacing: 10) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .fill(accent.opacity(0.15))
+                    .frame(width: 26, height: 26)
+                Image(systemName: NodeTheme.icon(node.kind))
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(accent)
+            }
+            VStack(alignment: .leading, spacing: 1) {
+                Text(node.name)
+                    .font(.system(.body, design: .rounded).weight(.medium))
                 if !node.description.isEmpty {
                     Text(node.description)
                         .font(.caption)
@@ -23,31 +30,12 @@ struct NodeRow: View {
             }
             Spacer()
             if isFavorite {
-                Image(systemName: "star.fill").foregroundStyle(.yellow)
+                Image(systemName: "star.fill")
+                    .font(.caption)
+                    .foregroundStyle(.yellow)
             }
         }
-    }
-
-    private func iconName(for kind: NodeKind) -> String {
-        switch kind {
-        case .marketplace:     return "globe"
-        case .plugin:          return "puzzlepiece.extension"
-        case .skill:           return "sparkles"
-        case .command:         return "terminal"
-        case .builtinCommand:  return "wrench.and.screwdriver"
-        case .localSkill:      return "folder.badge.person.crop"
-        }
-    }
-
-    private func iconColor(for kind: NodeKind) -> Color {
-        switch kind {
-        case .marketplace: return .blue
-        case .plugin:      return .purple
-        case .skill:       return .orange
-        case .command:     return .primary
-        case .builtinCommand: return .gray
-        case .localSkill:  return .green
-        }
+        .padding(.vertical, 2)
     }
 }
 
@@ -65,31 +53,62 @@ struct TreeNode: Identifiable {
 struct TreeListView: View {
     let store: AppStore
     @Binding var selection: String?
+    var leafKinds: Set<NodeKind>? = nil       // nil = all leaf kinds (the "All" view)
+    var rootFilter: ((Node) -> Bool)? = nil   // optional: restrict which roots to show
 
-    private func buildTreeNode(_ node: Node) -> TreeNode {
-        let kids = store.children(of: node.id).filter { child in
-            child.isLeaf || child.status == .installed
+    /// Recursively build a TreeNode, keeping only subtrees that have matching leaves.
+    /// When leafKinds == nil, all leaves match (existing "All" behavior).
+    private func matchingTree(_ node: Node) -> TreeNode? {
+        let children = store.children(of: node.id)
+
+        if node.isLeaf {
+            // Determine if this leaf matches the filter
+            let selfMatches: Bool
+            if let kinds = leafKinds {
+                selfMatches = kinds.contains(node.kind)
+            } else {
+                // nil = all leaves match (All view)
+                selfMatches = true
+            }
+            if selfMatches {
+                return TreeNode(node: node, children: nil)
+            } else {
+                return nil
+            }
+        } else {
+            // Container node: filter children that are either leaves or installed plugins
+            // (mirrors the original buildTreeNode filter)
+            let eligibleChildren: [Node]
+            if leafKinds == nil {
+                // Original "All" behavior: keep installed plugins and leaves
+                eligibleChildren = children.filter { $0.isLeaf || $0.status == .installed }
+            } else {
+                // Filtered view: recurse into all children; matchingTree will prune empties
+                eligibleChildren = children
+            }
+
+            let builtChildren = eligibleChildren.compactMap { matchingTree($0) }
+
+            // A container is shown if it has matching descendants
+            if builtChildren.isEmpty {
+                return nil
+            }
+            return TreeNode(node: node, children: builtChildren)
         }
-        if kids.isEmpty {
-            return TreeNode(node: node, children: nil)
-        }
-        return TreeNode(node: node, children: kids.map { buildTreeNode($0) })
     }
 
     private var shownRoots: [Node] {
-        store.rootNodes().filter { root in hasShowableDescendant(root) }
-    }
-
-    private func hasShowableDescendant(_ node: Node) -> Bool {
-        if node.isLeaf { return true }
-        if node.kind == .plugin && node.status == .installed { return true }
-        return store.children(of: node.id).contains { hasShowableDescendant($0) }
+        var roots = store.rootNodes()
+        if let rf = rootFilter {
+            roots = roots.filter(rf)
+        }
+        return roots.filter { matchingTree($0) != nil }
     }
 
     var body: some View {
         List(selection: $selection) {
             ForEach(shownRoots) { root in
-                RootSection(store: store, root: root, buildTreeNode: buildTreeNode)
+                RootSection(store: store, root: root, matchingTree: matchingTree)
             }
         }
     }
@@ -100,12 +119,10 @@ struct TreeListView: View {
 private struct RootSection: View {
     let store: AppStore
     let root: Node
-    let buildTreeNode: (Node) -> TreeNode
+    let matchingTree: (Node) -> TreeNode?
 
     private var topLevelTreeNodes: [TreeNode] {
-        store.children(of: root.id)
-            .filter { $0.isLeaf || $0.status == .installed }
-            .map { buildTreeNode($0) }
+        store.children(of: root.id).compactMap { matchingTree($0) }
     }
 
     var body: some View {

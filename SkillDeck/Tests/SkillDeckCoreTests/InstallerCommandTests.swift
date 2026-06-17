@@ -11,4 +11,8 @@ final class InstallerCommandTests: XCTestCase {
         let p = Installer.fallbackClaudePath
         XCTAssertTrue(p.hasSuffix("/.local/bin/claude"))
     }
+
+    func test_install_timeout_constant_is_positive() {
+        XCTAssertGreaterThan(Installer.installTimeout, 0)
+    }
 }

@@ -28,10 +28,11 @@ public struct SkillItem: Identifiable, Equatable, Sendable {
     public let body: String
     public let filePath: String?
     public var insertText: String
+    public let argumentHint: String?
 
     public init(name: String, kind: ItemKind, scope: SourceScope,
                 pluginName: String?, description: String, body: String,
-                filePath: String?, insertText: String) {
+                filePath: String?, insertText: String, argumentHint: String? = nil) {
         self.id = SkillItem.makeID(scope: scope, pluginName: pluginName, kind: kind, name: name)
         self.name = name
         self.kind = kind
@@ -41,6 +42,7 @@ public struct SkillItem: Identifiable, Equatable, Sendable {
         self.body = body
         self.filePath = filePath
         self.insertText = insertText
+        self.argumentHint = argumentHint
     }
 
     public static func makeID(scope: SourceScope, pluginName: String?,
