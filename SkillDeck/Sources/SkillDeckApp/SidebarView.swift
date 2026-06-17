@@ -20,6 +20,7 @@ struct SidebarView: View {
                 Label("My Local", systemImage: "folder.badge.person.crop").tag(SidebarFilter.localSkills)
                 Label("Built-in", systemImage: "wrench.and.screwdriver").tag(SidebarFilter.builtin)
                 Label("Project", systemImage: "folder.badge.gearshape").tag(SidebarFilter.project)
+                Label("MCP", systemImage: "network").tag(SidebarFilter.mcp)
             }
             Section("Browse") {
                 Label("Marketplace", systemImage: "puzzlepiece.extension").tag(SidebarFilter.marketplace)

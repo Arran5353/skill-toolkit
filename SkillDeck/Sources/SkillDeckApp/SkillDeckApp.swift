@@ -72,7 +72,7 @@ struct SkillDeckApp: App {
 }
 
 enum SidebarFilter: Hashable {
-    case all, favorites, recents, commands, skills, localSkills, builtin, project, marketplace, diagnostics
+    case all, favorites, recents, commands, skills, localSkills, builtin, project, mcp, marketplace, diagnostics
 }
 
 // MARK: - Content Column
@@ -106,6 +106,9 @@ struct ContentColumn: View {
         case .project:
             TreeListView(store: store, selection: $selection,
                          rootFilter: { $0.id == TreeBuilder.projectRootID })
+        case .mcp:
+            TreeListView(store: store, selection: $selection,
+                         leafKinds: [.mcpServer])
         default:
             ListView(store: store, filter: filter, selection: $selection)
         }

@@ -29,6 +29,8 @@ struct ListView: View {
             base = store.nodes.filter { $0.kind == .builtinCommand }
         case .project:
             base = store.nodes.filter { $0.parentID == TreeBuilder.projectRootID }
+        case .mcp:
+            base = store.nodes.filter { $0.kind == .mcpServer }
         case .marketplace, .diagnostics:
             base = []
         }
