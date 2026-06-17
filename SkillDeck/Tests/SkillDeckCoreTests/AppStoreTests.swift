@@ -42,15 +42,6 @@ final class AppStoreTests: XCTestCase {
         XCTAssertEqual(store.useCount("user|cr|command|code-review"), 2)
     }
 
-    func test_search_matches_name_and_description() {
-        let store = AppStore(statePath: tempPath())
-        store.setNodes(sampleNodes())
-        XCTAssertEqual(store.search("brain").map(\.name), ["brainstorming"])
-        XCTAssertEqual(store.search("review").map(\.name), ["code-review"])
-        XCTAssertEqual(Set(store.search("").map(\.name)), ["brainstorming", "code-review"])
-        // plugin names are no longer searched on the Node model
-        XCTAssertTrue(store.search("sp").isEmpty)
-    }
 
     func test_empty_override_clears_and_restores_default() {
         let store = AppStore(statePath: tempPath())

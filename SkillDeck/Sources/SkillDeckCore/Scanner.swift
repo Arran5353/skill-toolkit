@@ -6,17 +6,6 @@ public struct Scanner {
         public let warnings: [ScanWarning]
     }
 
-    /// Convenience wrapper over scan(...) using the standard ~/.claude layout. CatalogLoader calls scan(...) directly; kept for standalone use/tests.
-    public static func scanDefault(projectDirs: [String]) -> Result {
-        let home = FileManager.default.homeDirectoryForCurrentUser.path
-        return scan(
-            userSkillsDir: "\(home)/.claude/skills",
-            pluginsCacheDir: "\(home)/.claude/plugins/cache",
-            projectDirs: projectDirs,
-            includeBuiltins: true
-        )
-    }
-
     public static func scan(userSkillsDir: String, pluginsCacheDir: String,
                             projectDirs: [String], includeBuiltins: Bool) -> Result {
         var items: [SkillItem] = []
@@ -126,24 +115,15 @@ public struct Scanner {
 
     // MARK: - plugin.json declared skill paths
 
-    private struct PluginManifest: Decodable { let skills: SkillsField? }
-
-    private enum SkillsField: Decodable {
-        case one(String)
-        case many([String])
-
+    private struct PluginManifest: Decodable {
+        let skills: [String]
         init(from decoder: Decoder) throws {
-            let c = try decoder.singleValueContainer()
-            if let s = try? c.decode(String.self) { self = .one(s) }
-            else { self = .many((try? c.decode([String].self)) ?? []) }
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            if let many = try? c.decode([String].self, forKey: .skills) { skills = many }
+            else if let one = try? c.decode(String.self, forKey: .skills) { skills = [one] }
+            else { skills = [] }
         }
-
-        var paths: [String] {
-            switch self {
-            case .one(let s): return [s]
-            case .many(let a): return a
-            }
-        }
+        enum CodingKeys: String, CodingKey { case skills }
     }
 
     private static func scanDeclaredSkills(versionDir: URL, pluginName: String,
@@ -151,9 +131,9 @@ public struct Scanner {
         let manifestPath = versionDir.appendingPathComponent(".claude-plugin/plugin.json")
         guard let data = try? Data(contentsOf: manifestPath),
               let manifest = try? JSONDecoder().decode(PluginManifest.self, from: data),
-              let field = manifest.skills else { return }
+              !manifest.skills.isEmpty else { return }
         let fm = FileManager.default
-        for rel in field.paths {
+        for rel in manifest.skills {
             let resolved = versionDir.appendingPathComponent(rel).standardizedFileURL
             var isDir: ObjCBool = false
             guard fm.fileExists(atPath: resolved.path, isDirectory: &isDir), isDir.boolValue else { continue }

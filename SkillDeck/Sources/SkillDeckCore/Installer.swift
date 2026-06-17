@@ -74,14 +74,14 @@ public final class Installer {
             // write more than the ~64KB pipe buffer to stdout; if we don't read it, the
             // child blocks on write, never exits, terminationHandler never fires, and the
             // install spins forever. Collecting on dispatch queues avoids that deadlock.
-            let outData = LockedData()
-            let errData = LockedData()
+            let outData = LockedBox(Data())
+            let errData = LockedBox(Data())
             let group = DispatchGroup()
             for (handle, sink) in [(outPipe.fileHandleForReading, outData),
                                    (errPipe.fileHandleForReading, errData)] {
                 group.enter()
                 DispatchQueue.global(qos: .utility).async {
-                    sink.set((try? handle.readToEnd()) ?? Data())
+                    sink.value = (try? handle.readToEnd()) ?? Data()
                     group.leave()
                 }
             }
@@ -96,10 +96,9 @@ public final class Installer {
                 cont.resume(returning: state)
             }
 
-            // Box DispatchWorkItem in an @unchecked Sendable wrapper so it can be captured
-            // across concurrency boundaries without a Swift 6 error.
-            // DispatchWorkItem itself is thread-safe for cancel() calls.
-            let timeoutBox = SendableBox<DispatchWorkItem?>(nil)
+            // Box DispatchWorkItem in a LockedBox so it can be captured across concurrency
+            // boundaries without a Swift 6 error; reads/writes are lock-guarded.
+            let timeoutBox = LockedBox<DispatchWorkItem?>(nil)
 
             proc.terminationHandler = { p in
                 // Cancel any pending timeout work item so we don't needlessly terminate
@@ -110,7 +109,7 @@ public final class Installer {
                 if p.terminationStatus == 0 {
                     resumeOnce(.succeeded)
                 } else {
-                    let msg = (String(data: errData.get(), encoding: .utf8) ?? "")
+                    let msg = (String(data: errData.value, encoding: .utf8) ?? "")
                         .trimmingCharacters(in: .whitespacesAndNewlines)
                     resumeOnce(.failed(msg.isEmpty ? "exit \(p.terminationStatus)" : msg))
                 }
@@ -148,12 +147,15 @@ private let _installTimeout: TimeInterval = 180
 
 // MARK: - Helpers
 
-/// Minimal thread-safe Data box for collecting pipe output from a background queue.
-private final class LockedData: @unchecked Sendable {
+/// Minimal thread-safe box for sharing a value across concurrency boundaries.
+private final class LockedBox<T>: @unchecked Sendable {
     private let lock = NSLock()
-    private var data = Data()
-    func set(_ d: Data) { lock.lock(); data = d; lock.unlock() }
-    func get() -> Data { lock.lock(); defer { lock.unlock() }; return data }
+    private var _value: T
+    init(_ value: T) { _value = value }
+    var value: T {
+        get { lock.lock(); defer { lock.unlock() }; return _value }
+        set { lock.lock(); _value = newValue; lock.unlock() }
+    }
 }
 
 /// Thread-safe Bool flag that can only transition false → true once.
@@ -168,11 +170,4 @@ private final class LockedFlag: @unchecked Sendable {
         value = true
         return true
     }
-}
-
-/// Minimal @unchecked Sendable wrapper that lets a non-Sendable value (e.g. DispatchWorkItem)
-/// be captured across concurrency boundaries. The caller is responsible for thread safety.
-private final class SendableBox<T>: @unchecked Sendable {
-    var value: T
-    init(_ value: T) { self.value = value }
 }

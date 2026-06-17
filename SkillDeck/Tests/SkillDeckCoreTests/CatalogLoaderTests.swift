@@ -32,6 +32,37 @@ final class CatalogLoaderTests: XCTestCase {
         XCTAssertEqual(result.nodes.first { $0.name == "cloudflare" }?.parentID, "root|local")
     }
 
+    func test_mcp_server_with_no_marketplace_node_is_not_orphaned() throws {
+        let fm = FileManager.default
+        let root = fm.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        func write(_ rel: String, _ s: String) throws {
+            let u = root.appendingPathComponent(rel)
+            try fm.createDirectory(at: u.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try s.write(to: u, atomically: true, encoding: .utf8)
+        }
+        // installed plugin with .mcp.json but NO marketplace.json anywhere
+        try write("plugins/installed_plugins.json",
+                  "{\"version\":2,\"plugins\":{\"loner@somemp\":[{}]}}")
+        try write("plugins/cache/somemp/loner/1.0.0/.mcp.json",
+                  "{\"loner\":{\"type\":\"http\",\"url\":\"https://x/mcp/\"}}")
+        // empty marketplaces dir
+        try fm.createDirectory(at: root.appendingPathComponent("plugins/marketplaces"), withIntermediateDirectories: true)
+
+        let result = CatalogLoader.load(
+            userSkillsDir: root.appendingPathComponent("skills").path,
+            pluginsCacheDir: root.appendingPathComponent("plugins/cache").path,
+            marketplacesDir: root.appendingPathComponent("plugins/marketplaces").path,
+            installedPluginsPath: root.appendingPathComponent("plugins/installed_plugins.json").path,
+            projectDirs: [])
+        let mcp = result.nodes.first { $0.kind == .mcpServer && $0.name == "loner" }
+        XCTAssertNotNil(mcp)
+        // its parent node must exist among nodes (not orphaned)
+        XCTAssertTrue(result.nodes.contains { $0.id == mcp!.parentID })
+        // and that parent must be reachable (a root, or chain to a root)
+        let parent = result.nodes.first { $0.id == mcp!.parentID }!
+        XCTAssertEqual(parent.kind, .plugin)
+    }
+
     func test_mcp_only_plugin_shows_mcp_server_node() throws {
         let fm = FileManager.default
         let root = fm.temporaryDirectory.appendingPathComponent(UUID().uuidString)

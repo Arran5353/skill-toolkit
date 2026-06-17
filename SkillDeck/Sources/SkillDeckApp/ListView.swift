@@ -1,6 +1,8 @@
 import SwiftUI
 import SkillDeckCore
 
+/// Flat list used only for the cross-cutting Favorites and Recents filters.
+/// All kind/scope filters are rendered hierarchically by TreeListView (see ContentColumn).
 struct ListView: View {
     let store: AppStore
     let filter: SidebarFilter
@@ -8,32 +10,7 @@ struct ListView: View {
     @State private var query: String = ""
 
     private var rows: [Node] {
-        let base: [Node]
-        switch filter {
-        case .all:
-            // Not reached: SidebarFilter.all is routed to TreeListView by ContentColumn.
-            base = store.nodes.filter { $0.isLeaf }
-        case .favorites:
-            base = store.favoriteItems()
-        case .recents:
-            base = store.recentItems(limit: 50)
-        case .commands:
-            // Exclude project-scoped commands; those appear under the dedicated Project filter.
-            base = store.nodes.filter { $0.kind == .command && $0.parentID != TreeBuilder.projectRootID }
-        case .skills:
-            // Exclude project-scoped skills; those appear under the dedicated Project filter.
-            base = store.nodes.filter { $0.kind == .skill && $0.parentID != TreeBuilder.projectRootID }
-        case .localSkills:
-            base = store.nodes.filter { $0.kind == .localSkill }
-        case .builtin:
-            base = store.nodes.filter { $0.kind == .builtinCommand }
-        case .project:
-            base = store.nodes.filter { $0.parentID == TreeBuilder.projectRootID }
-        case .mcp:
-            base = store.nodes.filter { $0.kind == .mcpServer }
-        case .marketplace, .diagnostics:
-            base = []
-        }
+        let base = filter == .recents ? store.recentItems(limit: 50) : store.favoriteItems()
         let q = query.lowercased().trimmingCharacters(in: .whitespaces)
         guard !q.isEmpty else { return base }
         return base.filter {

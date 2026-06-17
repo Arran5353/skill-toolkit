@@ -25,7 +25,32 @@ public struct CatalogLoader {
                                     projectDirs: projectDirs, includeBuiltins: true)
         let mpScan = MarketplaceScanner.scan(marketplacesDir: marketplacesDir, installed: installed)
         var nodes = TreeBuilder.build(skillItems: leafScan.items, marketplaceNodes: mpScan.nodes)
-        nodes += scanMCPNodes(pluginsCacheDir: pluginsCacheDir)
+        let mcpNodes = scanMCPNodes(pluginsCacheDir: pluginsCacheDir)
+
+        // Attach MCP nodes to their parent plugin nodes. If the parent node doesn't exist
+        // (plugin installed but no marketplace.json), synthesize a minimal plugin node so
+        // MCP servers are never orphaned/invisible in the tree.
+        let existingIDs = Set(nodes.map(\.id))
+        var synthesized: [String: Node] = [:]
+        for mcp in mcpNodes {
+            guard let parentID = mcp.parentID, !existingIDs.contains(parentID),
+                  synthesized[parentID] == nil else { continue }
+            // Parse the plugin name from the parentID: "mp|<marketplace>|plugin|<plugin>"
+            let parts = parentID.split(separator: "|", omittingEmptySubsequences: false)
+            let pluginName = parts.count >= 4 ? String(parts[3]) : parentID
+            synthesized[parentID] = Node(
+                id: parentID,
+                kind: .plugin,
+                name: pluginName,
+                description: "",
+                status: .installed,
+                parentID: nil,
+                marketplaceName: nil,
+                installRef: nil
+            )
+        }
+        nodes += synthesized.values
+        nodes += mcpNodes
         return Result(nodes: nodes, warnings: leafScan.warnings + mpScan.warnings)
     }
 

@@ -17,22 +17,14 @@ struct MCPDetailView: View {
             .padding(20)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .background(backdrop(accent))
+        .accentBackdrop(accent)
     }
 
     // MARK: - Header
 
     private func header(accent: Color) -> some View {
         HStack(alignment: .top, spacing: 14) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(accent.gradient.opacity(0.9))
-                    .frame(width: 52, height: 52)
-                    .shadow(color: accent.opacity(0.35), radius: 8, y: 3)
-                Image(systemName: NodeTheme.icon(node.kind))
-                    .font(.system(size: 24, weight: .semibold))
-                    .foregroundStyle(.white)
-            }
+            NodeIconTile(kind: node.kind)
             VStack(alignment: .leading, spacing: 6) {
                 Text(node.name)
                     .font(.system(.largeTitle, design: .rounded).weight(.bold))
@@ -66,13 +58,4 @@ struct MCPDetailView: View {
         }
     }
 
-    // MARK: - Backdrop
-
-    private func backdrop(_ accent: Color) -> some View {
-        LinearGradient(
-            colors: [accent.opacity(0.06), .clear],
-            startPoint: .top, endPoint: .center
-        )
-        .ignoresSafeArea()
-    }
 }

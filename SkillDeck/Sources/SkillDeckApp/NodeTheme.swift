@@ -41,6 +41,35 @@ enum NodeTheme {
     }
 }
 
+/// The gradient rounded-square icon tile used in detail-view headers.
+struct NodeIconTile: View {
+    let kind: NodeKind
+    var size: CGFloat = 52
+    var body: some View {
+        let c = NodeTheme.accent(kind)
+        ZStack {
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(c.gradient.opacity(0.9))
+                .frame(width: size, height: size)
+                .shadow(color: c.opacity(0.35), radius: 8, y: 3)
+            Image(systemName: NodeTheme.icon(kind))
+                .font(.system(size: size * 0.46, weight: .semibold))
+                .foregroundStyle(.white)
+        }
+    }
+}
+
+extension View {
+    /// The subtle top accent wash used behind detail views.
+    func accentBackdrop(_ accent: Color) -> some View {
+        background(
+            LinearGradient(colors: [accent.opacity(0.06), .clear],
+                           startPoint: .top, endPoint: .center)
+                .ignoresSafeArea()
+        )
+    }
+}
+
 /// A small colored pill (e.g. the kind badge).
 struct KindBadge: View {
     let kind: NodeKind

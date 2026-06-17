@@ -129,7 +129,8 @@ struct DetailColumn: View {
             case .plugin:
                 PluginDetailView(store: store, node: node, claudeAvailable: claudeAvailable)
             case .marketplace:
-                GroupPlaceholder(name: node.name, subtitle: "Marketplace")
+                GroupPlaceholder(name: node.name,
+                                 subtitle: node.id.hasPrefix("mp|") ? "Marketplace" : "")
             case .mcpServer:
                 MCPDetailView(node: node)
             case .skill, .command, .builtinCommand, .localSkill:
