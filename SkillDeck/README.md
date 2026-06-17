@@ -38,9 +38,38 @@ cd SkillDeck
 swift run SkillDeckApp
 ```
 
-This launches the app (a window plus a menu bar icon). To produce a standalone `.app` bundle,
-wrap the built executable with your preferred bundling step; SwiftPM builds the executable at
-`.build/debug/SkillDeckApp`.
+This launches the app (a window plus a menu bar icon).
+
+## Packaging a distributable app
+
+To build a standalone `SkillDeck.app` and a `SkillDeck.dmg` you can hand to others:
+
+```bash
+cd SkillDeck
+./scripts/package.sh
+```
+
+Output lands in `build/`:
+- `build/SkillDeck.app` — the app bundle (ad-hoc signed)
+- `build/SkillDeck.dmg` — a drag-to-Applications disk image to share
+
+### Installing an unsigned build (for recipients)
+
+This app is **not signed with an Apple Developer ID** (that costs $99/yr), so macOS
+Gatekeeper will block it on first launch. To open it:
+
+1. Open the `.dmg` and drag **SkillDeck** into **Applications**.
+2. In Applications, **right-click SkillDeck → Open**, then click **Open** in the dialog.
+   (Double-clicking will just show "unidentified developer" — right-click → Open is the
+   one-time bypass.) On macOS 15 you may instead need: System Settings → Privacy &
+   Security → scroll down → **Open Anyway**.
+3. Grant **Accessibility** permission when prompted (needed for terminal injection; see below).
+
+After this first launch, the app opens normally. Prefer building from source (above) if you'd
+rather not bypass Gatekeeper.
+
+> A frictionless install (no Gatekeeper warning) requires signing + notarization with an
+> Apple Developer account — see Apple's `codesign` and `notarytool` docs.
 
 ## Permissions
 
