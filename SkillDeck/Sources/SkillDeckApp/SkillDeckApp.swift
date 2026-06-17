@@ -127,6 +127,8 @@ struct DetailColumn: View {
                 PluginDetailView(store: store, node: node, claudeAvailable: claudeAvailable)
             case .marketplace:
                 GroupPlaceholder(name: node.name, subtitle: "Marketplace")
+            case .mcpServer:
+                MCPDetailView(node: node)
             case .skill, .command, .builtinCommand, .localSkill:
                 DetailView(store: store, tracker: tracker, selection: $selection)
             }

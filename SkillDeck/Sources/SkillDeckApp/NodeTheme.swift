@@ -12,6 +12,7 @@ enum NodeTheme {
         case .builtinCommand: return Color(red: 0.30, green: 0.55, blue: 0.55) // muted teal-green
         case .plugin:         return Color(red: 0.93, green: 0.55, blue: 0.18) // amber
         case .marketplace:    return Color(red: 0.85, green: 0.33, blue: 0.45) // rose
+        case .mcpServer:      return Color(red: 0.30, green: 0.62, blue: 0.55) // teal-green
         }
     }
 
@@ -23,6 +24,7 @@ enum NodeTheme {
         case .builtinCommand: return "command"
         case .plugin:         return "puzzlepiece.extension.fill"
         case .marketplace:    return "bag.fill"
+        case .mcpServer:      return "network"
         }
     }
 
@@ -34,6 +36,7 @@ enum NodeTheme {
         case .builtinCommand: return "BUILT-IN"
         case .plugin:         return "PLUGIN"
         case .marketplace:    return "MARKETPLACE"
+        case .mcpServer:      return "MCP SERVER"
         }
     }
 }
