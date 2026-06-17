@@ -101,4 +101,4 @@ easy to extend with new data sources or features.
 
 ## 📄 License
 
-MIT © Yazhuo Zhou
+MIT © 2026 Yazhuo Zhou

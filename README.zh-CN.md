@@ -90,4 +90,4 @@ SkillDeck 只读取你本地的 `~/.claude` 目录(skills、plugins、marketplac
 
 ## 📄 许可证
 
-MIT © Yazhuo Zhou
+MIT © 2026 Yazhuo Zhou
