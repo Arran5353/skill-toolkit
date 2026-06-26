@@ -88,7 +88,7 @@ struct SkillDeckApp: App {
 }
 
 enum SidebarFilter: Hashable {
-    case all, favorites, recents, commands, skills, localSkills, builtin, project, mcp, marketplace, diagnostics
+    case all, favorites, recents, commands, skills, localSkills, builtin, project, mcp, agents, marketplace, diagnostics
 }
 
 // MARK: - Content Column
@@ -125,6 +125,9 @@ struct ContentColumn: View {
         case .mcp:
             TreeListView(store: store, selection: $selection,
                          leafKinds: [.mcpServer])
+        case .agents:
+            TreeListView(store: store, selection: $selection,
+                         leafKinds: [.agent])
         default:
             ListView(store: store, filter: filter, selection: $selection)
         }
@@ -149,6 +152,8 @@ struct DetailColumn: View {
                                  subtitle: node.id.hasPrefix("mp|") ? "Marketplace" : "")
             case .mcpServer:
                 MCPDetailView(node: node)
+            case .agent:
+                AgentDetailView(node: node)
             case .skill, .command, .builtinCommand, .localSkill:
                 DetailView(store: store, tracker: tracker, selection: $selection)
             }

@@ -63,6 +63,31 @@ final class CatalogLoaderTests: XCTestCase {
         XCTAssertEqual(parent.kind, .plugin)
     }
 
+    func test_plugin_agents_show_as_agent_nodes() throws {
+        let fm = FileManager.default
+        let root = fm.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        func write(_ rel: String, _ s: String) throws {
+            let u = root.appendingPathComponent(rel)
+            try fm.createDirectory(at: u.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try s.write(to: u, atomically: true, encoding: .utf8)
+        }
+        try write("plugins/marketplaces/official/.claude-plugin/marketplace.json",
+                  "{\"name\":\"official\",\"plugins\":[{\"name\":\"pw\",\"description\":\"x\"}]}")
+        try write("plugins/installed_plugins.json", "{\"version\":2,\"plugins\":{\"pw@official\":[{}]}}")
+        try write("plugins/cache/official/pw/1.0.0/agents/test-architect.md",
+                  "---\nname: test-architect\ndescription: designs tests\nmodel: opus\n---\nb")
+        let result = CatalogLoader.load(
+            userSkillsDir: root.appendingPathComponent("skills").path,
+            pluginsCacheDir: root.appendingPathComponent("plugins/cache").path,
+            marketplacesDir: root.appendingPathComponent("plugins/marketplaces").path,
+            installedPluginsPath: root.appendingPathComponent("plugins/installed_plugins.json").path,
+            projectDirs: [])
+        let ag = result.nodes.first { $0.kind == .agent && $0.name == "test-architect" }
+        XCTAssertNotNil(ag)
+        XCTAssertEqual(ag?.parentID, Node.pluginID(marketplace: "official", plugin: "pw"))
+        XCTAssertTrue(ag!.description.contains("opus"))
+    }
+
     func test_mcp_only_plugin_shows_mcp_server_node() throws {
         let fm = FileManager.default
         let root = fm.temporaryDirectory.appendingPathComponent(UUID().uuidString)

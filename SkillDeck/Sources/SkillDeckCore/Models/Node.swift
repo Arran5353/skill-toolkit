@@ -1,7 +1,7 @@
 import Foundation
 
 public enum NodeKind: String, Equatable, Sendable {
-    case marketplace, plugin, skill, command, builtinCommand, localSkill, mcpServer
+    case marketplace, plugin, skill, command, builtinCommand, localSkill, mcpServer, agent
 }
 
 public enum InstallStatus: Equatable, Sendable {
@@ -42,7 +42,7 @@ public struct Node: Identifiable, Equatable, Sendable {
 
     public var isLeaf: Bool {
         switch kind {
-        case .skill, .command, .builtinCommand, .localSkill, .mcpServer: return true
+        case .skill, .command, .builtinCommand, .localSkill, .mcpServer, .agent: return true
         case .marketplace, .plugin: return false
         }
     }

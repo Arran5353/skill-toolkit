@@ -13,6 +13,7 @@ enum NodeTheme {
         case .plugin:         return Color(red: 0.93, green: 0.55, blue: 0.18) // amber
         case .marketplace:    return Color(red: 0.85, green: 0.33, blue: 0.45) // rose
         case .mcpServer:      return Color(red: 0.30, green: 0.62, blue: 0.55) // teal-green
+        case .agent:          return Color(red: 0.92, green: 0.45, blue: 0.42) // warm coral
         }
     }
 
@@ -25,6 +26,7 @@ enum NodeTheme {
         case .plugin:         return "puzzlepiece.extension.fill"
         case .marketplace:    return "bag.fill"
         case .mcpServer:      return "network"
+        case .agent:          return "person.2.fill"
         }
     }
 
@@ -37,6 +39,7 @@ enum NodeTheme {
         case .plugin:         return "PLUGIN"
         case .marketplace:    return "MARKETPLACE"
         case .mcpServer:      return "MCP SERVER"
+        case .agent:          return "AGENT"
         }
     }
 }

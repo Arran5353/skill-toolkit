@@ -21,6 +21,7 @@ struct SidebarView: View {
                 Label("Built-in", systemImage: "wrench.and.screwdriver").tag(SidebarFilter.builtin)
                 Label("Project", systemImage: "folder.badge.gearshape").tag(SidebarFilter.project)
                 Label("MCP", systemImage: "network").tag(SidebarFilter.mcp)
+                Label("Agents", systemImage: "person.2.fill").tag(SidebarFilter.agents)
             }
             Section("Browse") {
                 Label("Marketplace", systemImage: "puzzlepiece.extension").tag(SidebarFilter.marketplace)
