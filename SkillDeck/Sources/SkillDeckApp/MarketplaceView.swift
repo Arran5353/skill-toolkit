@@ -6,6 +6,7 @@ struct MarketplaceView: View {
     @Binding var selection: String?
     let claudeAvailable: Bool
     @State private var query: String = ""
+    @State private var collapsed: Set<String> = []
 
     /// Real marketplaces only (not side-branch roots).
     private var marketplaces: [Node] {
@@ -35,32 +36,69 @@ struct MarketplaceView: View {
             ForEach(marketplaces) { mp in
                 let visiblePlugins = plugins(for: mp)
                 if !visiblePlugins.isEmpty {
-                    Section(mp.name) {
-                        ForEach(visiblePlugins) { plugin in
-                            HStack {
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(plugin.name).font(.body)
-                                    if !plugin.description.isEmpty {
-                                        Text(plugin.description)
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
-                                            .lineLimit(2)
-                                    }
-                                }
-                                Spacer()
-                                InstallButton(
-                                    store: store,
-                                    node: plugin,
-                                    claudeAvailable: claudeAvailable
-                                )
+                    Section {
+                        if !collapsed.contains(mp.id) {
+                            ForEach(visiblePlugins) { plugin in
+                                pluginRow(plugin).tag(plugin.id)
                             }
-                            .tag(plugin.id)
                         }
+                    } header: {
+                        marketplaceHeader(mp, count: visiblePlugins.count)
                     }
                 }
             }
         }
         .searchable(text: $query, placement: .toolbar, prompt: "Search plugins")
+    }
+
+    // Big, distinct, collapsible marketplace header.
+    private func marketplaceHeader(_ mp: Node, count: Int) -> some View {
+        let isCollapsed = collapsed.contains(mp.id)
+        let accent = NodeTheme.accent(.marketplace)
+        return Button {
+            withAnimation(.easeInOut(duration: 0.18)) {
+                if isCollapsed { collapsed.remove(mp.id) } else { collapsed.insert(mp.id) }
+            }
+        } label: {
+            HStack(spacing: 9) {
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(accent)
+                    .rotationEffect(.degrees(isCollapsed ? 0 : 90))
+                Image(systemName: "bag.fill")
+                    .font(.system(size: 13))
+                    .foregroundStyle(accent)
+                Text(mp.name)
+                    .font(.system(.title3, design: .rounded).weight(.bold))
+                    .foregroundStyle(.primary)
+                Text("\(count)")
+                    .font(.system(size: 11, weight: .bold, design: .rounded))
+                    .foregroundStyle(accent)
+                    .padding(.horizontal, 7).padding(.vertical, 2)
+                    .background(accent.opacity(0.15), in: Capsule())
+                Spacer()
+            }
+            .padding(.vertical, 6)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .textCase(nil)   // don't uppercase the marketplace name
+    }
+
+    private func pluginRow(_ plugin: Node) -> some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(plugin.name).font(.body)
+                if !plugin.description.isEmpty {
+                    Text(plugin.description)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                }
+            }
+            Spacer()
+            InstallButton(store: store, node: plugin, claudeAvailable: claudeAvailable)
+        }
     }
 }
 
