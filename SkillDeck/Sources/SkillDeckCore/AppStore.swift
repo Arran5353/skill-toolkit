@@ -80,6 +80,31 @@ public final class AppStore {
         return nodes.first { $0.id == id }?.insertText ?? ""
     }
 
+    // MARK: - Fuzzy Search
+
+    /// Fuzzy-search injectable leaf items (skills, commands, local skills, built-ins),
+    /// ranked best-first. name matches weigh more than description matches.
+    public func fuzzySearch(_ query: String, limit: Int = 30) -> [Node] {
+        let injectableKinds: Set<NodeKind> = [.skill, .command, .builtinCommand, .localSkill]
+        let candidates = nodes.filter { injectableKinds.contains($0.kind) }
+        let q = query.trimmingCharacters(in: .whitespaces)
+        if q.isEmpty {
+            // no query: alphabetical
+            return Array(candidates.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }.prefix(limit))
+        }
+        var scored: [(Node, Int)] = []
+        for n in candidates {
+            let nameScore = FuzzyMatcher.score(q, n.name)
+            let descScore = FuzzyMatcher.score(q, n.description).map { $0 / 3 }
+            if let best = [nameScore, descScore].compactMap({ $0 }).max() {
+                // bonus: name matches outrank description-only
+                let bonus = nameScore != nil ? 200 : 0
+                scored.append((n, best + bonus))
+            }
+        }
+        return scored.sorted { $0.1 > $1.1 }.prefix(limit).map { $0.0 }
+    }
+
     // MARK: - Private
     private func persist() { try? Persistence.save(state, to: statePath) }
 }

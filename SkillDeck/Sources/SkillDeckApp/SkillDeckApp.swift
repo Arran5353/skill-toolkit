@@ -11,28 +11,46 @@ struct SkillDeckApp: App {
     @State private var sidebarFilter: SidebarFilter = .all
     @State private var claudeAvailable: Bool = false
     @State private var updateAvailable: UpdateChecker.Release?
+    @State private var paletteOpen = false
 
     var body: some Scene {
         Window("SkillDeck", id: "main") {
-            NavigationSplitView {
-                SidebarView(store: store, filter: $sidebarFilter)
-                    .navigationSplitViewColumnWidth(min: 170, ideal: 200, max: 280)
-            } content: {
-                ContentColumn(
-                    store: store,
-                    filter: sidebarFilter,
-                    selection: $selection,
-                    claudeAvailable: claudeAvailable
-                )
-                .navigationSplitViewColumnWidth(min: 260, ideal: 340, max: 620)
-            } detail: {
-                DetailColumn(
-                    store: store,
-                    tracker: tracker,
-                    selection: $selection,
-                    claudeAvailable: claudeAvailable
-                )
+            ZStack {
+                NavigationSplitView {
+                    SidebarView(store: store, filter: $sidebarFilter)
+                        .navigationSplitViewColumnWidth(min: 170, ideal: 200, max: 280)
+                } content: {
+                    ContentColumn(
+                        store: store,
+                        filter: sidebarFilter,
+                        selection: $selection,
+                        claudeAvailable: claudeAvailable
+                    )
+                    .navigationSplitViewColumnWidth(min: 260, ideal: 340, max: 620)
+                } detail: {
+                    DetailColumn(
+                        store: store,
+                        tracker: tracker,
+                        selection: $selection,
+                        claudeAvailable: claudeAvailable
+                    )
+                }
+
+                if paletteOpen {
+                    CommandPalette(store: store, tracker: tracker) {
+                        paletteOpen = false
+                    }
+                    .transition(.opacity.combined(with: .scale(scale: 0.97)))
+                }
+
+                // Hidden button to capture ⌘K globally within the window
+                Button("") { paletteOpen.toggle() }
+                    .keyboardShortcut("k", modifiers: .command)
+                    .opacity(0)
+                    .frame(width: 0, height: 0)
+                    .allowsHitTesting(false)
             }
+            .animation(.easeInOut(duration: 0.15), value: paletteOpen)
             .frame(minWidth: 820, minHeight: 480)
             .frame(idealWidth: 1180, idealHeight: 760)
             .onAppear { bootstrap() }

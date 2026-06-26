@@ -46,4 +46,16 @@ final class AppStoreNodeTests: XCTestCase {
         store.setNodes(nodes())
         XCTAssertEqual(store.effectiveInsertText(for: "user|superpowers|skill|tdd"), "use the tdd skill")
     }
+
+    func test_fuzzy_search_ranks_name_match_first() {
+        let store = AppStore(statePath: tmp())
+        store.setNodes([
+            Node(id: "a", kind: .skill, name: "brainstorming", description: "",
+                 status: .notApplicable, parentID: nil, insertText: "use the brainstorming skill"),
+            Node(id: "b", kind: .command, name: "build", description: "brainstorm helper",
+                 status: .notApplicable, parentID: nil, insertText: "/build"),
+        ])
+        let r = store.fuzzySearch("brain")
+        XCTAssertEqual(r.first?.name, "brainstorming")  // name match beats description match
+    }
 }
