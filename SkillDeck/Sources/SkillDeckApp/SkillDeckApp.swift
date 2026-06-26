@@ -16,6 +16,7 @@ struct SkillDeckApp: App {
         Window("SkillDeck", id: "main") {
             NavigationSplitView {
                 SidebarView(store: store, filter: $sidebarFilter)
+                    .navigationSplitViewColumnWidth(min: 170, ideal: 200, max: 280)
             } content: {
                 ContentColumn(
                     store: store,
@@ -23,6 +24,7 @@ struct SkillDeckApp: App {
                     selection: $selection,
                     claudeAvailable: claudeAvailable
                 )
+                .navigationSplitViewColumnWidth(min: 260, ideal: 340, max: 620)
             } detail: {
                 DetailColumn(
                     store: store,
