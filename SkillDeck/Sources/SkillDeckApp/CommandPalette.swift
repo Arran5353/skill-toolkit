@@ -11,6 +11,7 @@ struct CommandPalette: View {
     @State private var selectedIndex: Int = 0
     @FocusState private var searchFocused: Bool
     @State private var showCopyOnlyNote = false
+    @StateObject private var coordinator = InjectCoordinator()
 
     private var results: [Node] {
         store.fuzzySearch(query, limit: 12)
@@ -65,6 +66,16 @@ struct CommandPalette: View {
         .onKeyPress(.escape) {
             onClose()
             return .handled
+        }
+        .sheet(item: $coordinator.pending) { fill in
+            ParameterFillSheet(
+                pending: fill,
+                onInject: { values in
+                    coordinator.complete(values: values, store: store, tracker: tracker)
+                    onClose()
+                },
+                onCancel: { coordinator.cancel() }
+            )
         }
     }
 
@@ -161,17 +172,14 @@ struct CommandPalette: View {
         guard !results.isEmpty else { return }
         let clamped = min(selectedIndex, results.count - 1)
         let node = results[clamped]
-        let text = store.effectiveInsertText(for: node.id)
-        let ok = Injector.inject(text, into: tracker.previousApp)
-        store.recordUse(node.id)
-        if ok {
-            onClose()
-        } else {
-            Injector.requestAccessibility()
-            showCopyOnlyNote = true
-            // Still close after showing the note briefly — mirroring DetailView behavior
-            // (DetailView stays open; palette closes since user may not notice)
-            // Actually mirror DetailView: stay open, show note
+        coordinator.begin(node: node, store: store, tracker: tracker) { ok in
+            if ok {
+                onClose()
+            } else {
+                Injector.requestAccessibility()
+                showCopyOnlyNote = true
+                // Stay open to show the copy-only note (mirror DetailView behavior)
+            }
         }
     }
 }

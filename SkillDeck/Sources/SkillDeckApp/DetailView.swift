@@ -8,6 +8,7 @@ struct DetailView: View {
     @Binding var selection: String?
     @State private var editedInsert: String = ""
     @State private var showCopyOnlyNote = false
+    @StateObject private var coordinator = InjectCoordinator()
 
     private var node: Node? { selection.flatMap { store.node(id: $0) } }
 
@@ -35,6 +36,15 @@ struct DetailView: View {
                 showCopyOnlyNote = false
             }
             .onAppear { editedInsert = store.effectiveInsertText(for: node.id) }
+            .sheet(item: $coordinator.pending) { fill in
+                ParameterFillSheet(
+                    pending: fill,
+                    onInject: { values in
+                        coordinator.complete(values: values, store: store, tracker: tracker)
+                    },
+                    onCancel: { coordinator.cancel() }
+                )
+            }
         } else {
             emptyState
         }
@@ -163,12 +173,11 @@ struct DetailView: View {
     // MARK: - Actions
 
     private func inject(_ node: Node) {
-        let text = store.effectiveInsertText(for: node.id)
-        let ok = Injector.inject(text, into: tracker.previousApp)
-        store.recordUse(node.id)
-        if !ok {
-            Injector.requestAccessibility()
-            showCopyOnlyNote = true
+        coordinator.begin(node: node, store: store, tracker: tracker) { ok in
+            if !ok {
+                Injector.requestAccessibility()
+                showCopyOnlyNote = true
+            }
         }
     }
 

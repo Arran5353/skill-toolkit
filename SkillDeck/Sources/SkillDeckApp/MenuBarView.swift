@@ -39,6 +39,9 @@ struct MenuBarView: View {
         Button("Quit") { NSApplication.shared.terminate(nil) }
     }
 
+    // NOTE: MenuBar is a quick-fire path — no parameter fill sheet here.
+    // Param-fill (for commands with <required> or [optional] placeholders) is only available
+    // in the main window (DetailView) and the command palette (CommandPalette).
     private func fire(_ node: Node) {
         let ok = Injector.inject(store.effectiveInsertText(for: node.id), into: tracker.previousApp)
         store.recordUse(node.id)
