@@ -25,7 +25,8 @@ struct SkillDeckApp: App {
                         store: store,
                         filter: sidebarFilter,
                         selection: $selection,
-                        claudeAvailable: claudeAvailable
+                        claudeAvailable: claudeAvailable,
+                        onOpenSearch: { paletteOpen = true }
                     )
                     .navigationSplitViewColumnWidth(min: 260, ideal: 340, max: 620)
                 } detail: {
@@ -132,38 +133,47 @@ struct ContentColumn: View {
     let filter: SidebarFilter
     @Binding var selection: String?
     let claudeAvailable: Bool
+    var onOpenSearch: (() -> Void)? = nil
 
     var body: some View {
-        switch filter {
-        case .marketplace:
-            MarketplaceView(store: store, selection: $selection, claudeAvailable: claudeAvailable)
-        case .diagnostics:
-            DiagnosticsView(store: store)
-        case .all:
-            TreeListView(store: store, selection: $selection)
-        case .skills:
-            TreeListView(store: store, selection: $selection,
-                         leafKinds: [.skill, .localSkill])
-        case .commands:
-            TreeListView(store: store, selection: $selection,
-                         leafKinds: [.command, .builtinCommand])
-        case .localSkills:
-            TreeListView(store: store, selection: $selection,
-                         leafKinds: [.localSkill])
-        case .builtin:
-            TreeListView(store: store, selection: $selection,
-                         leafKinds: [.builtinCommand])
-        case .project:
-            TreeListView(store: store, selection: $selection,
-                         rootFilter: { $0.id == TreeBuilder.projectRootID })
-        case .mcp:
-            TreeListView(store: store, selection: $selection,
-                         leafKinds: [.mcpServer])
-        case .agents:
-            TreeListView(store: store, selection: $selection,
-                         leafKinds: [.agent])
-        default:
-            ListView(store: store, filter: filter, selection: $selection)
+        VStack(spacing: 0) {
+            if let onOpenSearch {
+                SearchLaunchButton(action: onOpenSearch)
+                    .padding(.horizontal, 12)
+                    .padding(.top, 10)
+                    .padding(.bottom, 6)
+            }
+            switch filter {
+            case .marketplace:
+                MarketplaceView(store: store, selection: $selection, claudeAvailable: claudeAvailable)
+            case .diagnostics:
+                DiagnosticsView(store: store)
+            case .all:
+                TreeListView(store: store, selection: $selection)
+            case .skills:
+                TreeListView(store: store, selection: $selection,
+                             leafKinds: [.skill, .localSkill])
+            case .commands:
+                TreeListView(store: store, selection: $selection,
+                             leafKinds: [.command, .builtinCommand])
+            case .localSkills:
+                TreeListView(store: store, selection: $selection,
+                             leafKinds: [.localSkill])
+            case .builtin:
+                TreeListView(store: store, selection: $selection,
+                             leafKinds: [.builtinCommand])
+            case .project:
+                TreeListView(store: store, selection: $selection,
+                             rootFilter: { $0.id == TreeBuilder.projectRootID })
+            case .mcp:
+                TreeListView(store: store, selection: $selection,
+                             leafKinds: [.mcpServer])
+            case .agents:
+                TreeListView(store: store, selection: $selection,
+                             leafKinds: [.agent])
+            default:
+                ListView(store: store, filter: filter, selection: $selection)
+            }
         }
     }
 }
@@ -208,5 +218,41 @@ struct GroupPlaceholder: View {
             name,
             systemImage: "folder",
             description: Text(subtitle))
+    }
+}
+
+// MARK: - Search Launch Button
+
+/// A toolbar button styled as a search field. Clicking it opens the CommandPalette overlay.
+struct SearchLaunchButton: View {
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                Image(systemName: "magnifyingglass")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(.secondary)
+                Text("Search skills & commands…")
+                    .font(.system(size: 13))
+                    .foregroundStyle(.tertiary)
+                Spacer(minLength: 0)
+                Text("⌘K")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(.quaternary)
+                    .padding(.horizontal, 5)
+                    .padding(.vertical, 2)
+                    .background(Color.primary.opacity(0.07), in: RoundedRectangle(cornerRadius: 4))
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .frame(width: 300)
+            .background(Color.primary.opacity(0.06), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .strokeBorder(Color.primary.opacity(0.10), lineWidth: 0.5)
+            )
+        }
+        .buttonStyle(.plain)
     }
 }
