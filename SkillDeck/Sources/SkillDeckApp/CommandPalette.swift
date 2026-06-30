@@ -86,7 +86,7 @@ struct CommandPalette: View {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 16, weight: .medium))
                 .foregroundStyle(.secondary)
-            TextField("Search skills, commands…", text: $query)
+            TextField("Search skills & commands  (⌥⌘K from any app)", text: $query)
                 .textFieldStyle(.plain)
                 .font(.system(.title3, design: .rounded))
                 .focused($searchFocused)

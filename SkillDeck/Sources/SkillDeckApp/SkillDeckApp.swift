@@ -12,6 +12,7 @@ struct SkillDeckApp: App {
     @State private var claudeAvailable: Bool = false
     @State private var updateAvailable: UpdateChecker.Release?
     @State private var paletteOpen = false
+    @State private var hotKey: GlobalHotKey?
 
     var body: some Scene {
         Window("SkillDeck", id: "main") {
@@ -76,6 +77,19 @@ struct SkillDeckApp: App {
             onChange: { Task { @MainActor in reload() } })
         newWatcher.start()
         self.watcher = newWatcher
+
+        // Register global ⌥⌘K hotkey — brings SkillDeck to front and opens command palette
+        let hk = GlobalHotKey { [self] in
+            Task { @MainActor in
+                NSApplication.shared.activate(ignoringOtherApps: true)
+                for w in NSApplication.shared.windows where w.canBecomeMain {
+                    w.makeKeyAndOrderFront(nil)
+                }
+                self.paletteOpen = true
+            }
+        }
+        hk.register()
+        self.hotKey = hk
     }
 
     @MainActor
